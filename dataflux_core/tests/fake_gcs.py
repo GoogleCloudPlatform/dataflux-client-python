@@ -1,0 +1,112 @@
+"""
+Copyright 2023 Google LLC
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+      https://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+
+Fake GCS package supporting the GCS API methods used for Dataflux.
+
+The fake_gcs package provides Client, Bucket, and GCSObject classes matching the
+interfaces used in Dataflux code. The fake is implemented using these classes,
+rather than by using an HTTP server and connecting the actual GCS client to the
+server, which could be a future improvement.
+"""
+
+from __future__ import annotations
+
+
+class Bucket(object):
+    """Bucket represents a bucket in GCS, containing objects."""
+
+    def __init__(self, name: str):
+        if not name:
+            raise Exception("bucket name must not be empty")
+        self.name = name
+        self.blobs: dict[str, Blob] = dict()
+
+    def list_blobs(
+        self,
+        max_results: int = 0,
+        start_offset: str = "",
+        end_offset: str = "",
+        prefix=None,
+    ) -> list[Blob]:
+        results = []
+        for name in sorted(self.blobs):
+            if max_results and len(results) == max_results:
+                break
+            if (not start_offset or name >= start_offset) and (
+                not end_offset or name < end_offset
+            ):
+                if not prefix or name.startswith(prefix):
+                    results.append(self.blobs[name])
+        return results
+
+    def blob(self, name: str):
+        if name not in self.blobs:
+            self.blobs[name] = Blob(name, bucket=self)
+        return self.blobs[name]
+
+    def _add_file(self, filename: str, content: bytes):
+        self.blobs[filename] = Blob(filename, content, self)
+
+
+class Blob(object):
+    """Blob represents a GCS blob object.
+
+    Attributes:
+        name: The name of the blob.
+        retry: A variable tracking the retry policy input.
+        content: The byte content of the Blob.
+        bucket: The bucket object in which this Blob resides.
+        size: The size in bytes of the Blob.
+    """
+
+    def __init__(self, name: str, content: bytes = b"", bucket: Bucket = None):
+        self.name = name
+        self.retry = None
+        self.content = content
+        self.bucket = bucket
+        self.size = len(self.content)
+
+    def compose(self, sources: list[str], retry=None):
+        b = b""
+        for item in sources:
+            b += self.bucket.blobs[item.name].content
+        self.content = b
+        self.retry = retry
+
+    def delete(self, retry=None):
+        del self.bucket.blobs[self.name]
+
+    def download_as_bytes(self, retry=None):
+        return self.content
+
+
+class Client(object):
+    """Client represents a GCS client which can provide bucket handles."""
+
+    def __init__(self):
+        self.buckets: dict[str, Bucket] = dict()
+        self.content: dict[str, tuple[str, str]] = dict()
+        # This can be set to indicate how many sequential errors to trigger before passing.
+        self.error_count = 0
+
+    def bucket(self, name: str) -> Bucket:
+        if self.error_count > 0:
+            self.error_count -= 1
+            raise Exception("Error")
+        if name not in self.buckets:
+            self.buckets[name] = Bucket(name)
+            if name in self.content:
+                self.buckets[name].content = self.content[name]
+        return self.buckets[name]

@@ -1,0 +1,496 @@
+"""
+ Copyright 2023 Google LLC
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+      https://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+ """
+
+from __future__ import annotations
+
+import multiprocessing
+import queue
+from dataflux_core import range_splitter
+from dataflux_core.download import COMPOSED_PREFIX
+import logging
+import time
+
+from google.cloud import storage
+from google.api_core.client_info import ClientInfo
+
+
+class ListWorker(object):
+    """Worker that lists a range of objects from a GCS bucket.
+
+    Attributes:
+        name: String name of the worker.
+        gcs_project: The string name of the google cloud storage project to list from.
+        bucket: The string name of the storage bucket to list from.from . import fast_list, download
+        send_work_stealing_needed_queue: Multiprocessing queue pushed to when a worker needs more work.
+        heartbeat_queue: Multiprocessing queue pushed to indicating worker is running nominally.
+        direct_work_available_queue: Multiprocessing queue to push availble work stealing ranges to.
+        idle_queue: Multiprocessing queue pushed to when worker is waiting for new work to steal.
+        unidle_queue: Multiprocessing queue pushed to when the worker has successfully stolen work.
+        results_queue: Multiprocessing queue on which the worker pushes its listing results onto.
+        start_range: Stirng start range worker will begin listing from.
+        end_range: String end range worker will list until.
+
+        results: Set storing aggregate results prior to pushing onto results_queue.
+        client: The GCS client through which all GCS list operations are executed.
+        skip_compose: When true, skip listing files with the composed object prefix.
+        prefix: When provided, only list objects under this prefix.
+        max_results: The maximum results per list call (set to max page size of 5000).
+        splitter: The range_splitter object used by this worker to divide work.
+        default_alph: The baseline alphabet used to initialize the range_splitter.
+    """
+
+    def __init__(
+        self,
+        name: str,
+        gcs_project: str,
+        bucket: str,
+        send_work_stealing_needed_queue: "multiprocessing.Queue[str]",
+        heartbeat_queue: "multiprocessing.Queue[str]",
+        direct_work_available_queue: "multiprocessing.Queue[tuple[str, str]]",
+        idle_queue: "multiprocessing.Queue[str]",
+        unidle_queue: "multiprocessing.Queue[str]",
+        results_queue: "multiprocessing.Queue[set[tuple[str, int]]]",
+        start_range: str,
+        end_range: str,
+        client: storage.Client = None,
+        skip_compose: bool = True,
+        prefix: str = None,
+        max_retries: int = 5,
+    ):
+        self.name = name
+        self.gcs_project = gcs_project
+        self.bucket = bucket
+        self.send_work_stealing_needed_queue = send_work_stealing_needed_queue
+        self.heartbeat_queue = heartbeat_queue
+        self.direct_work_available_queue = direct_work_available_queue
+        self.idle_queue = idle_queue
+        self.unidle_queue = unidle_queue
+        self.results_queue = results_queue
+        self.start_range = start_range
+        self.end_range = end_range
+        self.results: set[tuple[str, int]] = set()
+        self.client = client
+        self.max_results = 5000
+        self.splitter = None
+        self.default_alph = "a"
+        self.skip_compose = skip_compose
+        self.prefix = prefix
+        self.max_retries = max_retries
+
+    def wait_for_work(self) -> bool:
+        """Indefinitely waits for available work and consumes it once available.
+
+        Returns:
+          Boolean value indicating that new work has been acquired. The function
+          will only return False in response to receiving a shutdown signal (None)
+          from the controller.
+        """
+        self.send_work_stealing_needed_queue.put(self.name)
+        self.idle_queue.put(self.name)
+        logging.debug(f"Process {self.name} waiting for work...")
+        while True:
+            try:
+                self.heartbeat_queue.put(self.name)
+                new_range = self.direct_work_available_queue.get_nowait()
+                # None is pushed onto the queue as the shutdown signal once all work is finished.
+                if new_range[0] != None:
+                    self.unidle_queue.put(self.name)
+            except queue.Empty:
+                time.sleep(0.1)
+                continue
+            break
+        if new_range[0] is None:
+            logging.debug(f"Process {self.name} didn't receive work")
+            return False
+        self.start_range = new_range[0]
+        self.end_range = new_range[1]
+        logging.debug(
+            f"Process {self.name} got new range [{self.start_range},"
+            f" {self.end_range}]"
+        )
+        return True
+
+    def run(self) -> None:
+        """Runs the worker."""
+        logging.debug(f"Process {self.name} starting...")
+        if not self.client:
+            self.client = storage.Client(
+                project=self.gcs_project,
+                client_info=ClientInfo(user_agent="dataflux/0.0"),
+            )
+        self.splitter = range_splitter.new_rangesplitter(self.default_alph)
+        # When worker has started, attempt to push to all queues. If the idle or unidle queue
+        # push fails, the worker will not initialize and will be ignored by the controller.
+        # This allows us to safely handle multiprocessing failures that occur on startup.
+        self.idle_queue.put(self.name)
+        self.unidle_queue.put(self.name)
+        self.heartbeat_queue.put(self.name)
+        if self.start_range is None and self.end_range is None:
+            if not self.wait_for_work():
+                return
+        retries_remaining = self.max_retries
+        while True:
+            has_results = False
+            try:
+                list_blob_args = {
+                    "max_results": self.max_results,
+                    "start_offset": self.start_range,
+                    "end_offset": self.end_range,
+                }
+                if self.prefix:
+                    list_blob_args["prefix"] = self.prefix
+                blobs = self.client.bucket(self.bucket).list_blobs(**list_blob_args)
+                retries_remaining = self.max_retries
+                i = 0
+                self.heartbeat_queue.put(self.name)
+                for blob in blobs:
+                    i += 1
+                    if not self.skip_compose or not blob.name.startswith(
+                        COMPOSED_PREFIX
+                    ):
+                        self.results.add((blob.name, blob.size))
+                    self.start_range = blob.name
+                    if i == self.max_results:
+                        # Only allow work stealing when paging.
+                        has_results = True
+                        break
+            except Exception as e:
+                retries_remaining -= 1
+                logging.error(
+                    f"process {self.name} encountered error ({retries_remaining} retries left): {str(e)}"
+                )
+                if retries_remaining == 0:
+                    logging.error(
+                        "process " + self.name + " is out of retries; exiting"
+                    )
+                    return
+                continue
+            if has_results:
+                # Check for work stealing.
+                try:
+                    self.send_work_stealing_needed_queue.get_nowait()
+                except queue.Empty:
+                    continue
+                split_points = self.splitter.split_range(
+                    self.start_range, self.end_range, 1
+                )
+                steal_range = (split_points[0], self.end_range)
+                self.direct_work_available_queue.put(steal_range)
+                self.end_range = split_points[0]
+                self.max_results = 5000
+            else:
+                # All done, wait for work.
+                if len(self.results) > 0:
+                    self.results_queue.put(self.results)
+                    self.results = set()
+                if not self.wait_for_work():
+                    return
+
+
+def run_list_worker(
+    name: str,
+    gcs_project: str,
+    bucket: str,
+    send_work_stealing_needed_queue: "multiprocessing.Queue[str]",
+    heartbeat_queue: "multiprocessing.Queue[str]",
+    direct_work_available_queue: "multiprocessing.Queue[tuple[str, str]]",
+    idle_queue: "multiprocessing.Queue[str]",
+    unidle_queue: "multiprocessing.Queue[str]",
+    results_queue: "multiprocessing.Queue[set[tuple[str, int]]]",
+    start_range: str,
+    end_range: str,
+    client: storage.Client = None,
+    skip_compose: bool = True,
+    prefix: str = None,
+) -> None:
+    """Helper function to execute a ListWorker.
+
+    Args:
+      name: String name of the list worker.
+      gcs_project: String name of the google cloud project in use.
+      bucket: String name of the google cloud bucket to list from.
+      send_work_stealing_needed_queue: Multiprocessing queue pushed to when a worker needs more work.
+      heartbeat_queue: Multiprocessing queue pushed to while a worker is running nominally.
+      direct_work_available_queue: Multiprocessing queue to push availble work stealing ranges to.
+      idle_queue: Multiprocessing queue pushed to when worker is waiting for new work to steal.
+      unidle_queue: Multiprocessing queue pushed to when the worker has successfully stolen work.
+      results_queue: Multiprocessing queue on which the worker pushes its listing results onto.
+      start_range: Stirng start range worker will begin listing from.
+      end_range: String end range worker will list until.
+      client: The GCS storage client. When not provided, will be derived from background auth.
+      skip_compose: When true, skip listing files with the composed object prefix.
+      prefix: When provided, only list objects under this prefix.
+    """
+    ListWorker(
+        name,
+        gcs_project,
+        bucket,
+        send_work_stealing_needed_queue,
+        heartbeat_queue,
+        direct_work_available_queue,
+        idle_queue,
+        unidle_queue,
+        results_queue,
+        start_range,
+        end_range,
+        client,
+        skip_compose=skip_compose,
+        prefix=prefix,
+    ).run()
+
+
+class ListingController(object):
+    """This controller manages and monitors all listing workers operating on the GCS bucket.
+
+    Attributes:
+        max_parallelism: The maximum number of processes to start via the Multiprocessing library.
+        gcs_project: The string name of the google cloud storage project to list from.
+        bucket: The string name of the storage bucket to list from.
+        inited: The set of ListWorker processes that have succesfully started.
+        checkins: A dictionary tracking the last known checkin time for each inited ListWorker.
+        waiting_for_work: The number of ListWorker processes currently waiting for new listing work.
+        sort_results: Boolean indicating whether the final result set should be sorted or unsorted.
+        skip_compose: When true, skip listing files with the composed object prefix.
+        prefix: When provided, only list objects under this prefix.
+    """
+
+    def __init__(
+        self,
+        max_parallelism: int,
+        project: str,
+        bucket: str,
+        sort_results: bool = False,
+        skip_compose: bool = True,
+        prefix: str = None,
+    ):
+        # The maximum number of threads utilized in the fast list operation.
+        self.max_parallelism = max_parallelism
+        self.gcs_project = project
+        self.bucket = bucket
+        self.inited = set()
+        self.checkins = {}
+        self.waiting_for_work = 0
+        self.sort_results = sort_results
+        self.client = None
+        self.skip_compose = skip_compose
+        self.prefix = prefix
+
+    def manage_tracking_queues(
+        self,
+        idle_queue: "multiprocessing.Queue[str]",
+        unidle_queue: "multiprocessing.Queue[str]",
+        heartbeat_queue: "multiprocessing.Queue[str]",
+    ) -> None:
+        """Manages metadata queues to track execution of the listing operation.
+
+        Args:
+          idle_queue: the queue workers push to when in need of new work to steal.
+          unidle_queue: the queue workers push to when they steal work.
+          heartbeat_queue: the queue workers push to continuously while running nominally.
+        """
+        while True:
+            try:
+                idle_queue.get_nowait()
+                self.waiting_for_work += 1
+            except queue.Empty:
+                break
+        while True:
+            try:
+                unidle_queue.get_nowait()
+                self.waiting_for_work -= 1
+            except queue.Empty:
+                break
+        while True:
+            try:
+                inited_worker = heartbeat_queue.get_nowait()
+                current_time = time.time()
+                self.inited.add(inited_worker)
+                self.checkins[inited_worker] = current_time
+            except queue.Empty:
+                break
+
+    def check_crashed_processes(self) -> bool:
+        """Checks if any processes have crashed.
+
+        Returns:
+          A boolean indicating if any processes have crashed after initialization.
+          If this function returns true, it indicates a need to restart the listing
+          operation.
+        """
+        logging.debug("checking for crashed procs...")
+        now = time.time()
+        crashed = []
+        for inited_worker, last_checkin in self.checkins.items():
+            if now - last_checkin > 60:
+                crashed.append(inited_worker)
+            for proc in crashed:
+                if proc in self.inited:
+                    logging.error("process crash detected, ending list procedure...")
+                    return True
+        return False
+
+    def cleanup_processes(
+        self,
+        processes: "list[multiprocessing.Process]",
+        results_queue: "multiprocessing.Queue[set[tuple[str, int]]]",
+        results: "set[tuple[str, int]]",
+    ) -> list[tuple[str, int]]:
+        """Allows processes to shut down, kills procs that failed to initialize.
+
+        Args:
+          processes: the list of processes.
+          results_queue: the queue for transmitting all result tuples from listing.
+          results: the set of unique results consumed from results_queue.
+
+        Returns:
+          A sorted list of (str, int) tuples indicating the name and file size of each
+          unique file listed in the listing process.
+
+        """
+        while True:
+            alive = False
+            live_procs = 0
+            for p in processes:
+                if p.is_alive():
+                    alive = True
+                    live_procs += 1
+                    while True:
+                        try:
+                            result = results_queue.get_nowait()
+                            results.update(result)
+                            logging.debug(f"Result count: {len(results)}")
+                        except queue.Empty:
+                            break
+                    time.sleep(0.2)
+                    break
+            logging.debug("Live procs: %d", live_procs)
+            logging.debug("Inited procs: %d", len(self.inited))
+            if live_procs <= self.max_parallelism - len(self.inited):
+                alive = False
+                # This prevents any memory leaks from multiple executions, but does kill
+                # the stuck processes very aggressively. It does not cause issues in
+                # execution, but looks very loud to the user if they are watching debug
+                # output.
+                for p in processes:
+                    if p.is_alive():
+                        p.terminate()
+            if not alive:
+                if self.sort_results:
+                    return sorted(results)
+                return list(results)
+
+    def terminate_now(self, processes: "list[multiprocessing.Process]") -> RuntimeError:
+        """Terminates all processes immediately.
+
+        Args:
+          processes: The full list of multiprocessing processes.
+
+        Returns:
+            RuntimeError indicating that one or more multiprocess processes has
+            become unresponsive
+        """
+        for p in processes:
+            p.terminate()
+        raise RuntimeError("multiprocessing child process became unresponsive")
+
+    def run(self) -> list[tuple[str, int]]:
+        """Runs the controller that manages fast listing.
+
+        Returns:
+          A sorted list of (str, int) tuples indicating the name and file size of each
+          unique file listed in the listing process.
+        """
+        # Define the queues.
+        send_work_stealing_needed_queue: multiprocessing.Queue[str] = (
+            multiprocessing.Queue()
+        )
+        heartbeat_queue: multiprocessing.Queue[str] = multiprocessing.Queue()
+        direct_work_available_queue: multiprocessing.Queue[tuple[str, str]] = (
+            multiprocessing.Queue()
+        )
+        idle_queue: multiprocessing.Queue[str] = multiprocessing.Queue()
+        unidle_queue: multiprocessing.Queue[str] = multiprocessing.Queue()
+        results_queue: multiprocessing.Queue[set[tuple[str, int]]] = (
+            multiprocessing.Queue()
+        )
+        processes = []
+        results: set[tuple[str, int]] = set()
+        for i in range(self.max_parallelism):
+            p = multiprocessing.Process(
+                target=run_list_worker,
+                args=(
+                    "dataflux-listing-proc." + str(i),
+                    self.gcs_project,
+                    self.bucket,
+                    send_work_stealing_needed_queue,
+                    heartbeat_queue,
+                    direct_work_available_queue,
+                    idle_queue,
+                    unidle_queue,
+                    results_queue,
+                    "" if i == 0 else None,
+                    "" if i == 0 else None,
+                    self.client,
+                    self.skip_compose,
+                    self.prefix,
+                ),
+            )
+            processes.append(p)
+            p.start()
+            # Wait before starting the next process to avoid deadlock when multiple processes
+            # attempt to register with the same multiprocessing queue.
+            time.sleep(0.1)
+        while True:
+            time.sleep(0.2)
+            alive = False
+            for p in processes:
+                if p.is_alive():
+                    alive = True
+                    break
+            new_results = set()
+            while True:
+                try:
+                    result = results_queue.get_nowait()
+                    new_results.update(result)
+                except queue.Empty:
+                    break
+            if len(new_results) > 0:
+                results.update(new_results)
+                logging.debug(f"Result count: {len(results)}")
+            if not alive:
+                break
+            # Update all queues related to tracking process status.
+            self.manage_tracking_queues(idle_queue, unidle_queue, heartbeat_queue)
+            if self.check_crashed_processes():
+                return self.terminate_now(processes)
+            logging.debug("Inited procs: %d", len(self.inited))
+            logging.debug("Waiting for work: %d", self.waiting_for_work)
+            if len(self.inited) == self.waiting_for_work and (
+                self.waiting_for_work > 0
+            ):
+                logging.debug("Exiting, all processes are waiting for work")
+                for _ in range(self.max_parallelism * 2):
+                    direct_work_available_queue.put((None, None))
+                break
+        while True:
+            try:
+                result = results_queue.get_nowait()
+                results.update(result)
+                logging.debug(f"Result count: {len(results)}")
+            except queue.Empty:
+                break
+        logging.debug("Got all results, waiting for processes to exit.")
+        return self.cleanup_processes(processes, results_queue, results)
