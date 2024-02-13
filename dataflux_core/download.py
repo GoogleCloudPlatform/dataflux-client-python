@@ -1,5 +1,5 @@
 """
- Copyright 2023 Google LLC
+ Copyright 2024 Google LLC
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -62,27 +62,16 @@ def compose(
 
     if storage_client is None:
         storage_client = storage.Client(project=project_name)
-    retries = 3
-    while True:
-        try:
-            bucket = storage_client.bucket(bucket_name)
-            destination = bucket.blob(destination_blob_name)
 
-            sources = list()
-            for each_object in objects:
-                blob_name = each_object[0]
-                sources.append(bucket.blob(blob_name))
+    bucket = storage_client.bucket(bucket_name)
+    destination = bucket.blob(destination_blob_name)
 
-            destination.compose(sources, retry=MODIFIED_RETRY)
-            break
-        except Exception as e:
-            retries -= 1
-            logging.error(
-                f"compose encountered error ({retries} retries left): {str(e)}"
-            )
-            if retries <= 0:
-                raise RuntimeError(f"compose is out of retries; exiting: {e}")
-            continue
+    sources = list()
+    for each_object in objects:
+        blob_name = each_object[0]
+        sources.append(bucket.blob(blob_name))
+
+    destination.compose(sources, retry=MODIFIED_RETRY)
 
     return destination
 
@@ -146,20 +135,9 @@ def download_single(
     Returns:
         the contents of the object in bytes.
     """
-    retries = 3
-    while True:
-        try:
-            bucket_handle = storage_client.bucket(bucket_name)
-            blob = bucket_handle.blob(object_name)
-            return blob.download_as_bytes(retry=MODIFIED_RETRY)
-        except Exception as e:
-            retries -= 1
-            logging.error(
-                f"download_single encountered error ({retries} retries left): {str(e)}"
-            )
-            if retries <= 0:
-                raise RuntimeError(f"download_single is out of retries; exiting: {e}")
-            continue
+    bucket_handle = storage_client.bucket(bucket_name)
+    blob = bucket_handle.blob(object_name)
+    return blob.download_as_bytes(retry=MODIFIED_RETRY)
 
 
 class DataFluxDownloadOptimizationParams:
