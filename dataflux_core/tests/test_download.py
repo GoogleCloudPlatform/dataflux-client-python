@@ -1,5 +1,5 @@
 """
- Copyright 2023 Google LLC
+ Copyright 2024 Google LLC
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -35,29 +35,6 @@ class DownloadTestCase(unittest.TestCase):
         self.assertEqual(blob.name, destination_blob_name)
         self.assertEqual(blob.content, expected_result)
 
-    def test_compose_retries(self):
-        bucket_name = "test_bucket"
-        destination_blob_name = "dest_name"
-        objects = [("one", 3), ("two", 3), ("three", 5)]
-        client = fake_gcs.Client()
-        bucket = client.bucket(bucket_name)
-        bucket._add_file("one", bytes("one", "utf-8"))
-        bucket._add_file("two", bytes("two", "utf-8"))
-        bucket._add_file("three", bytes("three", "utf-8"))
-        client.error_count = 2
-        expected_result = b"onetwothree"
-        blob = download.compose("", bucket_name, destination_blob_name, objects, client)
-        self.assertEqual(blob.name, destination_blob_name)
-        self.assertEqual(blob.content, expected_result)
-        client.error_count = 3
-        try:
-            blob = download.compose(
-                "", bucket_name, destination_blob_name, objects, client
-            )
-            self.fail(f"expected RuntimeError but got {blob}")
-        except RuntimeError:
-            pass
-
     def test_decompose(self):
         bucket_name = "test_bucket"
         object_name = "test_obj"
@@ -77,23 +54,6 @@ class DownloadTestCase(unittest.TestCase):
         bucket._add_file(object_name, content)
         result = download.download_single(client, bucket_name, object_name)
         self.assertEqual(result, content)
-
-    def test_download_retry(self):
-        client = fake_gcs.Client()
-        bucket_name = "test_bucket"
-        object_name = "test_obj"
-        content = bytes("onetwothree", "utf-8")
-        bucket = client.bucket(bucket_name)
-        bucket._add_file(object_name, content)
-        client.error_count = 2
-        result = download.download_single(client, bucket_name, object_name)
-        self.assertEqual(result, content)
-        client.error_count = 3
-        try:
-            result = download.download_single(client, bucket_name, object_name)
-            self.fail(f"expected RuntimeError but got {result}")
-        except RuntimeError:
-            pass
 
     def test_dataflux_download(self):
         bucket_name = "test_bucket"

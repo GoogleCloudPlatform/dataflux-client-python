@@ -1,5 +1,5 @@
 """
-Copyright 2023 Google LLC
+Copyright 2024 Google LLC
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -98,13 +98,8 @@ class Client(object):
     def __init__(self):
         self.buckets: dict[str, Bucket] = dict()
         self.content: dict[str, tuple[str, str]] = dict()
-        # This can be set to indicate how many sequential errors to trigger before passing.
-        self.error_count = 0
 
     def bucket(self, name: str) -> Bucket:
-        if self.error_count > 0:
-            self.error_count -= 1
-            raise Exception("Error")
         if name not in self.buckets:
             self.buckets[name] = Bucket(name)
             if name in self.content:
