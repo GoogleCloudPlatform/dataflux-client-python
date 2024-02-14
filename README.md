@@ -2,11 +2,11 @@ This is the git repository for the Dataflux Python client library.
 
 # Overview
 
-This is the client library backing the [Dataflux Dataset for Pytorch](https://github.com/GoogleCloudPlatform/dataflux-pytorch). The purpose of this client is to quickly list and download data stored in GCS for use in python machine learning applications. The core functionalities of this client can be broken down into two key parts
+This is the client library backing the [Dataflux Dataset for Pytorch](https://github.com/GoogleCloudPlatform/dataflux-pytorch). The purpose of this client is to quickly list and download data stored in GCS for use in Python machine learning applications. The core functionalities of this client can be broken down into two key parts.
 
 ## Fast List
 
-The fast list component of this client leverages python multiprocessing to parallelize the listing of files within a GCS bucket. It does this by implementing a workstealing algorithm, where each worker in the list operation is able to steal work from its siblings once it has finished all currently slated listing work. This parallelization leads to a real world speed increase up to 10 times faster than sequential listing. Note that paralellization is limited by the machine on which the client runs, and optimal performance is typically found with a worker count that is 1:1 with the available cores.
+The fast list component of this client leverages Python multiprocessing to parallelize the listing of files within a GCS bucket. It does this by implementing a workstealing algorithm, where each worker in the list operation is able to steal work from its siblings once it has finished all currently slated listing work. This parallelization leads to a real world speed increase up to 10 times faster than sequential listing. Note that paralellization is limited by the machine on which the client runs, and optimal performance is typically found with a worker count that is 1:1 with the available cores.
 
 ## Compose Download
 
