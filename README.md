@@ -1,6 +1,6 @@
-This is the git repository for the Dataflux Python client library.
+# Dataflux for Google Cloud Storage Python client library
 
-# Overview
+## Overview
 
 This is the client library backing the [Dataflux Dataset for Pytorch](https://github.com/GoogleCloudPlatform/dataflux-pytorch). The purpose of this client is to quickly list and download data stored in GCS for use in Python machine learning applications. The core functionalities of this client can be broken down into two key parts.
 
@@ -16,18 +16,19 @@ The compose download component of the client uses the results of the fast list t
 
 To get started leveraging the dataflux client library, we encourage you to start from the [Dataflux Dataset for Pytorch](https://github.com/GoogleCloudPlatform/dataflux-pytorch). For an example of client-specific implementation, please see the [benchmark code](dataflux_core/benchmarking/dataflux_client_bench.py).
 
-# Support
+## Support
 
-* dataflux-customer-support@google.com
+* Please file a GitHub issue in this repository
+* If you need to get in touch with us, email dataflux-customer-support@google.com
 
-# Contributing
+## Contributing
 
 We welcome your feedback, issues, and bug fixes. We have a tight roadmap at this time so if you have a major feature or change in functionality you'd like to contribute, please open a GitHub Issue for discussion prior to sending a pull request. Please see [CONTRIBUTING](docs/contributing.md) for more information on how to report bugs or submit pull requests.
 
-# Code of Conduct
+## Code of Conduct
 
 This project has adopted the Google Open Source Code of Conduct. Please see [code-of-conduct.md](docs/code-of-conduct.md) for more information.
 
-# License
+## License
 
 The Dataflux Python Client has an Apache License 2.0. Please see the [LICENSE](LICENSE) file for more information.
