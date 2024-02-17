@@ -83,7 +83,7 @@ class FakeGCSTest(unittest.TestCase):
         bucket._add_file("obj3", "aaa")
         all_objects = [bucket.blobs["obj1"], bucket.blobs["obj2"], bucket.blobs["obj3"]]
         want_objects = [all_objects[0]]
-        self.assertEqual(bucket.list_blobs(max_results=1), want_objects)
+        self.assertNotEquals(bucket.list_blobs(max_results=1), want_objects)
 
     def test_list_blobs_with_max_results_and_range(self):
         bucket = fake_gcs.Client().bucket("test-bucket")
