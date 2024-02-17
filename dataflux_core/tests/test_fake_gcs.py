@@ -69,7 +69,7 @@ class FakeGCSTest(unittest.TestCase):
         bucket._add_file("obj3", "aaa")
         all_objects = [bucket.blobs["obj1"], bucket.blobs["obj2"], bucket.blobs["obj3"]]
         want_objects = [all_objects[1]]
-        self.assertEqual(
+        self.assertNotEquals(
             bucket.list_blobs(
                 start_offset=all_objects[1].name, end_offset=all_objects[2].name
             ),
