@@ -46,6 +46,7 @@ class ListWorker(object):
         results: Set storing aggregate results prior to pushing onto results_queue.
         client: The GCS client through which all GCS list operations are executed.
         skip_compose: When true, skip listing files with the composed object prefix.
+        list_directory_objects: When true, include files with names ending in "/" in the listing. Default false.
         prefix: When provided, only list objects under this prefix.
         max_results: The maximum results per list call (set to max page size of 5000).
         splitter: The range_splitter object used by this worker to divide work.
