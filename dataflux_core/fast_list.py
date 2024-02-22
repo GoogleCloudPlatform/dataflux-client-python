@@ -67,6 +67,7 @@ class ListWorker(object):
         end_range: str,
         client: storage.Client = None,
         skip_compose: bool = True,
+        list_directory_objects: bool = False,
         prefix: str = None,
         max_retries: int = 5,
     ):
@@ -87,6 +88,7 @@ class ListWorker(object):
         self.splitter = None
         self.default_alph = "a"
         self.skip_compose = skip_compose
+        self.list_directory_objects = list_directory_objects
         self.prefix = prefix
         self.max_retries = max_retries
 
@@ -158,9 +160,9 @@ class ListWorker(object):
                 self.heartbeat_queue.put(self.name)
                 for blob in blobs:
                     i += 1
-                    if not self.skip_compose or not blob.name.startswith(
+                    if (not self.skip_compose or not blob.name.startswith(
                         COMPOSED_PREFIX
-                    ):
+                    )) and (self.list_directory_objects or blob.name[-1] != "/"):
                         self.results.add((blob.name, blob.size))
                     self.start_range = blob.name
                     if i == self.max_results:

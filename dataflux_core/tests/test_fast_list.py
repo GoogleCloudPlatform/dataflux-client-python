@@ -32,7 +32,9 @@ class FastListTest(unittest.TestCase):
                 "prefix_obj_count": 0,
                 "prefix": None,
                 "object_size": 10,
+                "directory_obj_count": 10,
                 "skip_compose": True,
+                "list_directory_objects": False,
                 "expected_objects": 10000,
             },
             {
@@ -42,7 +44,9 @@ class FastListTest(unittest.TestCase):
                 "prefix_obj_count": 0,
                 "prefix": None,
                 "object_size": 10,
+                "directory_obj_count": 0,
                 "skip_compose": False,
+                "list_directory_objects": False,
                 "expected_objects": 10001,
             },
             {
@@ -52,7 +56,9 @@ class FastListTest(unittest.TestCase):
                 "prefix_obj_count": 0,
                 "prefix": None,
                 "object_size": 10,
+                "directory_obj_count": 0,
                 "skip_compose": True,
+                "list_directory_objects": False,
                 "expected_objects": 5000,
             },
             {
@@ -62,8 +68,22 @@ class FastListTest(unittest.TestCase):
                 "prefix_obj_count": 2000,
                 "prefix": "test-prefix/",
                 "object_size": 10,
+                "directory_obj_count": 0,
                 "skip_compose": True,
+                "list_directory_objects": False,
                 "expected_objects": 2000,
+            },
+            {
+                "desc": "List directory objects",
+                "object_count": 10000,
+                "compose_obj_count": 0,
+                "prefix_obj_count": 0,
+                "prefix": None,
+                "object_size": 10,
+                "directory_obj_count": 10,
+                "skip_compose": True,
+                "list_directory_objects": True,
+                "expected_objects": 10010,
             },
         ]
         for tc in test_cases:
@@ -85,6 +105,8 @@ class FastListTest(unittest.TestCase):
                 )
             for i in range(tc["prefix_obj_count"]):
                 bucket._add_file(f"{tc['prefix']}file{i}.txt", b"a" * object_size)
+            for i in range(tc["directory_obj_count"]):
+                bucket._add_file(f"{tc['prefix']}/dir{i}/", b"")
             list_worker = fast_list.ListWorker(
                 "test_worker",
                 "",
@@ -98,6 +120,7 @@ class FastListTest(unittest.TestCase):
                 "",
                 "",
                 skip_compose=tc["skip_compose"],
+                list_directory_objects=tc["list_directory_objects"],
                 prefix=tc["prefix"],
             )
             list_worker.client = client
@@ -109,16 +132,18 @@ class FastListTest(unittest.TestCase):
                     got_results.update(new_results)
                 except queue.Empty:
                     break
-            if len(got_results) != tc["expected_objects"]:
+            expected_objects = tc["expected_objects"]
+            if len(got_results) != expected_objects:
                 self.fail(
-                    f"got {len(got_results)} results, want {tc['expected_objects']}"
+                    f"got {len(got_results)} results, want {expected_objects}"
                 )
             got_total_size = 0
             for result in got_results:
                 got_total_size += result[1]
-            if got_total_size != tc["expected_objects"] * object_size:
+            want_total_size = (expected_objects - (tc["directory_obj_count"] if tc["list_directory_objects"] else 0)) * object_size
+            if got_total_size != want_total_size:
                 self.fail(
-                    f"got {got_total_size} results, want {object_count * object_size}"
+                    f"got {got_total_size} total size, want {want_total_size}"
                 )
 
     def test_manage_tracking_queues(self):
