@@ -6,7 +6,14 @@ This is the client library backing the [Dataflux Dataset for Pytorch](https://gi
 
 ## Fast List
 
-The fast list component of this client leverages Python multiprocessing to parallelize the listing of files within a GCS bucket. It does this by implementing a workstealing algorithm, where each worker in the list operation is able to steal work from its siblings once it has finished all currently slated listing work. This parallelization leads to a real world speed increase up to 10 times faster than sequential listing. Note that paralellization is limited by the machine on which the client runs, and optimal performance is typically found with a worker count that is 1:1 with the available cores.
+The fast list component of this client leverages Python multiprocessing to parallelize the listing of files within a GCS bucket. It does this by implementing a workstealing algorithm, where each worker in the list operation is able to steal work from its siblings once it has finished all currently slated listing work. This parallelization leads to a real world speed increase up to 10 times faster than sequential listing. Note that paralellization is limited by the machine on which the client runs, and optimal performance is typically found with a worker count that is 1:1 with the available cores. Benchmarking has demonstrated that the larger the object count, the better Dataflux performs when compared to a linear listing.
+
+### Fast List Benchmark Results
+|File Count / Avg Size|VM Core Count|List Time Without Dataflux|List Time With Dataflux|
+|---------------------|-------------|--------------------------|-----------------------|
+|10013 Obj / 643 KB   |48 Core      |2.35s                     |6.06s                  |
+|578411 Obj / 350 KB  |48 Core      |30.70s                    |9.39s                  |
+|1999002 Obj / 623 KB |48 Core      |117.61s                   |12.45s                 |
 
 ## Compose Download
 
