@@ -40,6 +40,7 @@ class ListWorker(object):
         idle_queue: Multiprocessing queue pushed to when worker is waiting for new work to steal.
         unidle_queue: Multiprocessing queue pushed to when the worker has successfully stolen work.
         results_queue: Multiprocessing queue on which the worker pushes its listing results onto.
+        metadata_queue: Multiprocessing queue on which the worker pushes tracking metadata.
         start_range: Stirng start range worker will begin listing from.
         end_range: String end range worker will list until.
 
@@ -51,6 +52,7 @@ class ListWorker(object):
         max_results: The maximum results per list call (set to max page size of 5000).
         splitter: The range_splitter object used by this worker to divide work.
         default_alph: The baseline alphabet used to initialize the range_splitter.
+        api_call_count: Variable tracking the number of GCS list calls made by the worker.
     """
 
     def __init__(
@@ -64,6 +66,7 @@ class ListWorker(object):
         idle_queue: "multiprocessing.Queue[str]",
         unidle_queue: "multiprocessing.Queue[str]",
         results_queue: "multiprocessing.Queue[set[tuple[str, int]]]",
+        metadata_queue: "multiprocessing.Queue[tuple[str, int]]",
         start_range: str,
         end_range: str,
         client: storage.Client = None,
@@ -81,6 +84,7 @@ class ListWorker(object):
         self.idle_queue = idle_queue
         self.unidle_queue = unidle_queue
         self.results_queue = results_queue
+        self.metadata_queue = metadata_queue
         self.start_range = start_range
         self.end_range = end_range
         self.results: set[tuple[str, int]] = set()
@@ -91,6 +95,7 @@ class ListWorker(object):
         self.skip_compose = skip_compose
         self.list_directory_objects = list_directory_objects
         self.prefix = prefix
+        self.api_call_count = 0
         self.max_retries = max_retries
 
     def wait_for_work(self) -> bool:
@@ -117,6 +122,9 @@ class ListWorker(object):
             break
         if new_range[0] is None:
             logging.debug(f"Process {self.name} didn't receive work")
+            # Upon receiving shutdown signal log all relevant metadata.
+            md = (self.name, self.api_call_count)
+            self.metadata_queue.put(md)
             return False
         self.start_range = new_range[0]
         self.end_range = new_range[1]
@@ -156,6 +164,7 @@ class ListWorker(object):
                 if self.prefix:
                     list_blob_args["prefix"] = self.prefix
                 blobs = self.client.bucket(self.bucket).list_blobs(**list_blob_args)
+                self.api_call_count += 1
                 retries_remaining = self.max_retries
                 i = 0
                 self.heartbeat_queue.put(self.name)
@@ -213,6 +222,7 @@ def run_list_worker(
     idle_queue: "multiprocessing.Queue[str]",
     unidle_queue: "multiprocessing.Queue[str]",
     results_queue: "multiprocessing.Queue[set[tuple[str, int]]]",
+    metadata_queue: "multiprocessing.Queue[tuple[str, int]]",
     start_range: str,
     end_range: str,
     client: storage.Client = None,
@@ -231,6 +241,7 @@ def run_list_worker(
       idle_queue: Multiprocessing queue pushed to when worker is waiting for new work to steal.
       unidle_queue: Multiprocessing queue pushed to when the worker has successfully stolen work.
       results_queue: Multiprocessing queue on which the worker pushes its listing results onto.
+      metadata_queue: Multiprocessing queue on which the worker pushes tracking metadata.
       start_range: Stirng start range worker will begin listing from.
       end_range: String end range worker will list until.
       client: The GCS storage client. When not provided, will be derived from background auth.
@@ -247,6 +258,7 @@ def run_list_worker(
         idle_queue,
         unidle_queue,
         results_queue,
+        metadata_queue,
         start_range,
         end_range,
         client,
@@ -349,6 +361,7 @@ class ListingController(object):
         self,
         processes: "list[multiprocessing.Process]",
         results_queue: "multiprocessing.Queue[set[tuple[str, int]]]",
+        metadata_queue: "multiprocessing.Queue[tuple[str, int]]",
         results: "set[tuple[str, int]]",
     ) -> list[tuple[str, int]]:
         """Allows processes to shut down, kills procs that failed to initialize.
@@ -356,6 +369,7 @@ class ListingController(object):
         Args:
           processes: the list of processes.
           results_queue: the queue for transmitting all result tuples from listing.
+          metadata_queue: the queue for transmitting all tracking metadata from workers.
           results: the set of unique results consumed from results_queue.
 
         Returns:
@@ -363,6 +377,7 @@ class ListingController(object):
           unique file listed in the listing process.
 
         """
+        api_call_count = 0
         while True:
             alive = False
             live_procs = 0
@@ -379,6 +394,12 @@ class ListingController(object):
                             break
                     time.sleep(0.2)
                     break
+            while True:
+                try:
+                    metadata = metadata_queue.get_nowait()
+                    api_call_count += metadata[1]
+                except queue.Empty:
+                    break
             logging.debug("Live procs: %d", live_procs)
             logging.debug("Inited procs: %d", len(self.inited))
             if live_procs <= self.max_parallelism - len(self.inited):
@@ -391,6 +412,7 @@ class ListingController(object):
                     if p.is_alive():
                         p.terminate()
             if not alive:
+                logging.debug(f"Total GCS API call count: {api_call_count}")
                 if self.sort_results:
                     return sorted(results)
                 return list(results)
@@ -429,6 +451,9 @@ class ListingController(object):
         results_queue: multiprocessing.Queue[set[tuple[str, int]]] = (
             multiprocessing.Queue()
         )
+        metadata_queue: multiprocessing.Queue[tuple[str, int]] = (
+            multiprocessing.Queue()
+        )
         processes = []
         results: set[tuple[str, int]] = set()
         for i in range(self.max_parallelism):
@@ -444,6 +469,7 @@ class ListingController(object):
                     idle_queue,
                     unidle_queue,
                     results_queue,
+                    metadata_queue,
                     "" if i == 0 else None,
                     "" if i == 0 else None,
                     self.client,
@@ -496,4 +522,4 @@ class ListingController(object):
             except queue.Empty:
                 break
         logging.debug("Got all results, waiting for processes to exit.")
-        return self.cleanup_processes(processes, results_queue, results)
+        return self.cleanup_processes(processes, results_queue, metadata_queue, results)

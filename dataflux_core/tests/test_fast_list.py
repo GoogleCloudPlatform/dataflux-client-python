@@ -36,6 +36,7 @@ class FastListTest(unittest.TestCase):
                 "skip_compose": True,
                 "list_directory_objects": False,
                 "expected_objects": 10000,
+                "expected_api_calls": 3,
             },
             {
                 "desc": "List 10k objects including compose",
@@ -48,6 +49,7 @@ class FastListTest(unittest.TestCase):
                 "skip_compose": False,
                 "list_directory_objects": False,
                 "expected_objects": 10001,
+                "expected_api_calls": 3,
             },
             {
                 "desc": "List 5k objects excluding compose",
@@ -60,6 +62,7 @@ class FastListTest(unittest.TestCase):
                 "skip_compose": True,
                 "list_directory_objects": False,
                 "expected_objects": 5000,
+                "expected_api_calls": 3,
             },
             {
                 "desc": "List 2k objects, prefix only",
@@ -72,6 +75,7 @@ class FastListTest(unittest.TestCase):
                 "skip_compose": True,
                 "list_directory_objects": False,
                 "expected_objects": 2000,
+                "expected_api_calls": 1,
             },
             {
                 "desc": "List directory objects",
@@ -84,6 +88,7 @@ class FastListTest(unittest.TestCase):
                 "skip_compose": True,
                 "list_directory_objects": True,
                 "expected_objects": 10010,
+                "expected_api_calls": 3,
             },
         ]
         for tc in test_cases:
@@ -93,6 +98,7 @@ class FastListTest(unittest.TestCase):
             object_count = tc["object_count"]
             object_size = tc["object_size"]
             results_queue = queue.Queue()
+            metadata_queue = queue.Queue()
             work_queue = queue.Queue()
             work_queue.put((None, ""))
 
@@ -117,6 +123,7 @@ class FastListTest(unittest.TestCase):
                 queue.Queue(),
                 queue.Queue(),
                 results_queue,
+                metadata_queue,
                 "",
                 "",
                 skip_compose=tc["skip_compose"],
@@ -145,6 +152,8 @@ class FastListTest(unittest.TestCase):
                 self.fail(
                     f"got {got_total_size} total size, want {want_total_size}"
                 )
+            if list_worker.api_call_count != tc["expected_api_calls"]:
+                self.fail(f"{list_worker.api_call_count} on test {tc['desc']}")
 
     def test_manage_tracking_queues(self):
         """Tests that all tracking queues are pushed to properly."""
@@ -187,6 +196,7 @@ class FastListTest(unittest.TestCase):
         controller = fast_list.ListingController(10, "", "", True)
         procs = []
         results_queue = queue.Queue()
+        metadata_queue = queue.Queue()
         set1 = set()
         set2 = set()
         set1.add(("item", 1))
@@ -196,14 +206,14 @@ class FastListTest(unittest.TestCase):
         results_set = set()
         for i in range(5):
             procs.append(fake_multiprocess.FakeProcess(f"proc{i}", False))
-        results = controller.cleanup_processes(procs, results_queue, results_set)
+        results = controller.cleanup_processes(procs, results_queue, metadata_queue, results_set)
         if results:
             self.fail("received results when no processes were alive")
         procs = []
         expected = [("item", 1), ("item2", 2)]
         for i in range(5):
             procs.append(fake_multiprocess.FakeProcess(f"proc{i}", True))
-        results = controller.cleanup_processes(procs, results_queue, results_set)
+        results = controller.cleanup_processes(procs, results_queue, metadata_queue, results_set)
         self.assertEqual(results, expected)
 
     def test_terminate_now(self):
@@ -252,6 +262,7 @@ class FastListTest(unittest.TestCase):
         idle_queue = queue.Queue()
         unidle_queue = queue.Queue()
         results_queue = queue.Queue()
+        metadata_queue = queue.Queue()
         direct_work_queue.put(("y", "z"))
 
         list_worker = fast_list.ListWorker(
@@ -264,6 +275,7 @@ class FastListTest(unittest.TestCase):
             idle_queue,
             unidle_queue,
             results_queue,
+            metadata_queue,
             "",
             "",
         )
@@ -289,6 +301,7 @@ class FastListTest(unittest.TestCase):
         idle_queue = queue.Queue()
         unidle_queue = queue.Queue()
         results_queue = queue.Queue()
+        metadata_queue = queue.Queue()
         direct_work_queue.put((None, None))
 
         list_worker = fast_list.ListWorker(
@@ -301,6 +314,7 @@ class FastListTest(unittest.TestCase):
             idle_queue,
             unidle_queue,
             results_queue,
+            metadata_queue,
             "",
             "",
         )
@@ -318,6 +332,7 @@ class FastListTest(unittest.TestCase):
         client = fake_gcs.Client()
         bucket_name = None
         results_queue = queue.Queue()
+        metadata_queue = queue.Queue()
         work_queue = queue.Queue()
         work_queue.put((None, ""))
 
@@ -331,6 +346,7 @@ class FastListTest(unittest.TestCase):
             queue.Queue(),
             queue.Queue(),
             results_queue,
+            metadata_queue,
             "",
             "",
         )
