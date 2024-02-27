@@ -369,7 +369,7 @@ class ListingController(object):
         Args:
           processes: the list of processes.
           results_queue: the queue for transmitting all result tuples from listing.
-          metadata_queue: the queue for trasmitting all tracking metadata from workers.
+          metadata_queue: the queue for transmitting all tracking metadata from workers.
           results: the set of unique results consumed from results_queue.
 
         Returns:
