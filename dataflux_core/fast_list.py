@@ -26,6 +26,8 @@ import time
 from google.cloud import storage
 from google.api_core.client_info import ClientInfo
 
+DEFAULT_ALLOWED_CLASS = ["STANDARD"]
+
 
 class ListWorker(object):
     """Worker that lists a range of objects from a GCS bucket.
@@ -49,6 +51,7 @@ class ListWorker(object):
         skip_compose: When true, skip listing files with the composed object prefix.
         list_directory_objects: When true, include files with names ending in "/" in the listing. Default false.
         prefix: When provided, only list objects under this prefix.
+        allowed_storage_classes: The set of GCS Storage Class types fast list will include.
         max_results: The maximum results per list call (set to max page size of 5000).
         splitter: The range_splitter object used by this worker to divide work.
         default_alph: The baseline alphabet used to initialize the range_splitter.
@@ -73,6 +76,7 @@ class ListWorker(object):
         skip_compose: bool = True,
         list_directory_objects: bool = False,
         prefix: str = None,
+        allowed_storage_classes: list[str] = DEFAULT_ALLOWED_CLASS,
         max_retries: int = 5,
     ):
         self.name = name
@@ -95,6 +99,7 @@ class ListWorker(object):
         self.skip_compose = skip_compose
         self.list_directory_objects = list_directory_objects
         self.prefix = prefix
+        self.allowed_storage_classes = allowed_storage_classes
         self.api_call_count = 0
         self.max_retries = max_retries
 
@@ -170,9 +175,14 @@ class ListWorker(object):
                 self.heartbeat_queue.put(self.name)
                 for blob in blobs:
                     i += 1
-                    if (not self.skip_compose or not blob.name.startswith(
-                        COMPOSED_PREFIX
-                    )) and (self.list_directory_objects or blob.name[-1] != "/"):
+                    if (
+                        (
+                            not self.skip_compose
+                            or not blob.name.startswith(COMPOSED_PREFIX)
+                        )
+                        and (self.list_directory_objects or blob.name[-1] != "/")
+                        and blob.storage_class in self.allowed_storage_classes
+                    ):
                         self.results.add((blob.name, blob.size))
                     self.start_range = blob.name
                     if i == self.max_results:
@@ -228,6 +238,7 @@ def run_list_worker(
     client: storage.Client = None,
     skip_compose: bool = True,
     prefix: str = None,
+    allowed_storage_classes: list[str] = DEFAULT_ALLOWED_CLASS,
 ) -> None:
     """Helper function to execute a ListWorker.
 
@@ -247,6 +258,7 @@ def run_list_worker(
       client: The GCS storage client. When not provided, will be derived from background auth.
       skip_compose: When true, skip listing files with the composed object prefix.
       prefix: When provided, only list objects under this prefix.
+      allowed_storage_classes: The set of GCS Storage Class types fast list will include.
     """
     ListWorker(
         name,
@@ -264,6 +276,7 @@ def run_list_worker(
         client,
         skip_compose=skip_compose,
         prefix=prefix,
+        allowed_storage_classes=allowed_storage_classes,
     ).run()
 
 
@@ -280,6 +293,7 @@ class ListingController(object):
         sort_results: Boolean indicating whether the final result set should be sorted or unsorted.
         skip_compose: When true, skip listing files with the composed object prefix.
         prefix: When provided, only list objects under this prefix.
+        allowed_storage_classes: The set of GCS Storage Class types fast list will include.
     """
 
     def __init__(
@@ -290,6 +304,7 @@ class ListingController(object):
         sort_results: bool = False,
         skip_compose: bool = True,
         prefix: str = None,
+        allowed_storage_classes: list[str] = DEFAULT_ALLOWED_CLASS,
     ):
         # The maximum number of threads utilized in the fast list operation.
         self.max_parallelism = max_parallelism
@@ -302,6 +317,7 @@ class ListingController(object):
         self.client = None
         self.skip_compose = skip_compose
         self.prefix = prefix
+        self.allowed_storage_classes = allowed_storage_classes
 
     def manage_tracking_queues(
         self,
@@ -451,9 +467,7 @@ class ListingController(object):
         results_queue: multiprocessing.Queue[set[tuple[str, int]]] = (
             multiprocessing.Queue()
         )
-        metadata_queue: multiprocessing.Queue[tuple[str, int]] = (
-            multiprocessing.Queue()
-        )
+        metadata_queue: multiprocessing.Queue[tuple[str, int]] = multiprocessing.Queue()
         processes = []
         results: set[tuple[str, int]] = set()
         for i in range(self.max_parallelism):
@@ -475,6 +489,7 @@ class ListingController(object):
                     self.client,
                     self.skip_compose,
                     self.prefix,
+                    self.allowed_storage_classes,
                 ),
             )
             processes.append(p)
