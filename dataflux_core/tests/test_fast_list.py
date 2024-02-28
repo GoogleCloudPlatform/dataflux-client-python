@@ -30,6 +30,7 @@ class FastListTest(unittest.TestCase):
                 "object_count": 10000,
                 "compose_obj_count": 1,
                 "prefix_obj_count": 0,
+                "archive_obj_count": 0,
                 "prefix": None,
                 "object_size": 10,
                 "directory_obj_count": 10,
@@ -43,6 +44,7 @@ class FastListTest(unittest.TestCase):
                 "object_count": 10000,
                 "compose_obj_count": 1,
                 "prefix_obj_count": 0,
+                "archive_obj_count": 0,
                 "prefix": None,
                 "object_size": 10,
                 "directory_obj_count": 0,
@@ -56,6 +58,7 @@ class FastListTest(unittest.TestCase):
                 "object_count": 5000,
                 "compose_obj_count": 5000,
                 "prefix_obj_count": 0,
+                "archive_obj_count": 0,
                 "prefix": None,
                 "object_size": 10,
                 "directory_obj_count": 0,
@@ -69,6 +72,7 @@ class FastListTest(unittest.TestCase):
                 "object_count": 5000,
                 "compose_obj_count": 5000,
                 "prefix_obj_count": 2000,
+                "archive_obj_count": 0,
                 "prefix": "test-prefix/",
                 "object_size": 10,
                 "directory_obj_count": 0,
@@ -82,12 +86,27 @@ class FastListTest(unittest.TestCase):
                 "object_count": 10000,
                 "compose_obj_count": 0,
                 "prefix_obj_count": 0,
+                "archive_obj_count": 0,
                 "prefix": None,
                 "object_size": 10,
                 "directory_obj_count": 10,
                 "skip_compose": True,
                 "list_directory_objects": True,
                 "expected_objects": 10010,
+                "expected_api_calls": 3,
+            },
+            {
+                "desc": "Skip non-standard class",
+                "object_count": 10000,
+                "compose_obj_count": 0,
+                "prefix_obj_count": 0,
+                "archive_obj_count": 1000,
+                "prefix": None,
+                "object_size": 10,
+                "directory_obj_count": 0,
+                "skip_compose": True,
+                "list_directory_objects": True,
+                "expected_objects": 10000,
                 "expected_api_calls": 3,
             },
         ]
@@ -113,6 +132,10 @@ class FastListTest(unittest.TestCase):
                 bucket._add_file(f"{tc['prefix']}file{i}.txt", b"a" * object_size)
             for i in range(tc["directory_obj_count"]):
                 bucket._add_file(f"{tc['prefix']}/dir{i}/", b"")
+            for i in range(tc["archive_obj_count"]):
+                bucket._add_file(
+                    f"archive_{i}", b"a" * object_size, storage_class="ARCHIVE"
+                )
             list_worker = fast_list.ListWorker(
                 "test_worker",
                 "",
@@ -141,17 +164,16 @@ class FastListTest(unittest.TestCase):
                     break
             expected_objects = tc["expected_objects"]
             if len(got_results) != expected_objects:
-                self.fail(
-                    f"got {len(got_results)} results, want {expected_objects}"
-                )
+                self.fail(f"got {len(got_results)} results, want {expected_objects}")
             got_total_size = 0
             for result in got_results:
                 got_total_size += result[1]
-            want_total_size = (expected_objects - (tc["directory_obj_count"] if tc["list_directory_objects"] else 0)) * object_size
+            want_total_size = (
+                expected_objects
+                - (tc["directory_obj_count"] if tc["list_directory_objects"] else 0)
+            ) * object_size
             if got_total_size != want_total_size:
-                self.fail(
-                    f"got {got_total_size} total size, want {want_total_size}"
-                )
+                self.fail(f"got {got_total_size} total size, want {want_total_size}")
             if list_worker.api_call_count != tc["expected_api_calls"]:
                 self.fail(f"{list_worker.api_call_count} on test {tc['desc']}")
 
@@ -206,14 +228,18 @@ class FastListTest(unittest.TestCase):
         results_set = set()
         for i in range(5):
             procs.append(fake_multiprocess.FakeProcess(f"proc{i}", False))
-        results = controller.cleanup_processes(procs, results_queue, metadata_queue, results_set)
+        results = controller.cleanup_processes(
+            procs, results_queue, metadata_queue, results_set
+        )
         if results:
             self.fail("received results when no processes were alive")
         procs = []
         expected = [("item", 1), ("item2", 2)]
         for i in range(5):
             procs.append(fake_multiprocess.FakeProcess(f"proc{i}", True))
-        results = controller.cleanup_processes(procs, results_queue, metadata_queue, results_set)
+        results = controller.cleanup_processes(
+            procs, results_queue, metadata_queue, results_set
+        )
         self.assertEqual(results, expected)
 
     def test_terminate_now(self):

@@ -56,8 +56,10 @@ class Bucket(object):
             self.blobs[name] = Blob(name, bucket=self)
         return self.blobs[name]
 
-    def _add_file(self, filename: str, content: bytes):
-        self.blobs[filename] = Blob(filename, content, self)
+    def _add_file(self, filename: str, content: bytes, storage_class="STANDARD"):
+        self.blobs[filename] = Blob(
+            filename, content, self, storage_class=storage_class
+        )
 
 
 class Blob(object):
@@ -71,12 +73,19 @@ class Blob(object):
         size: The size in bytes of the Blob.
     """
 
-    def __init__(self, name: str, content: bytes = b"", bucket: Bucket = None):
+    def __init__(
+        self,
+        name: str,
+        content: bytes = b"",
+        bucket: Bucket = None,
+        storage_class="STANDARD",
+    ):
         self.name = name
         self.retry = None
         self.content = content
         self.bucket = bucket
         self.size = len(self.content)
+        self.storage_class = storage_class
 
     def compose(self, sources: list[str], retry=None):
         b = b""
