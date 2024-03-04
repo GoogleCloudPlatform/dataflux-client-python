@@ -100,6 +100,26 @@ class Blob(object):
     def download_as_bytes(self, retry=None):
         return self.content
 
+    def open(self, mode: str, ignore_flush: bool = False):
+        if mode == "rb":
+            return BlobReader()
+        elif mode == "wb":
+            return BlobWriter()
+
+        return None
+
+
+class BlobReader(object):
+    """BlobReader represents a fake google.cloud.storage.fileio.BlobReader"""
+
+    pass
+
+
+class BlobWriter(object):
+    """BlobWriter represents a fake google.cloud.storage.fileio.BlobWriter"""
+
+    pass
+
 
 class Client(object):
     """Client represents a GCS client which can provide bucket handles."""
