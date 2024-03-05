@@ -73,6 +73,19 @@ class DownloadTestCase(unittest.TestCase):
                 f"expected only 3 objects in bucket, but found {len(bucket.blobs)}"
             )
 
+    def test_clean_composed_object(self):
+        class ComposedObj:
+            def __init__(self):
+                self.deleted = False
+
+            def delete(self, retry=None):
+                self.deleted = True
+
+        current_composed_object = ComposedObj()
+        download.clean_composed_object(current_composed_object)
+        if not current_composed_object.deleted:
+            self.fail("expected composed object cleanup: True, got False")
+
 
 if __name__ == "__main__":
     unittest.main()

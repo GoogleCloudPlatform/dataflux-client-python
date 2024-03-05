@@ -21,6 +21,8 @@ from google.cloud.storage.retry import DEFAULT_RETRY
 
 import uuid
 import logging
+import signal
+import sys
 
 # https://cloud.google.com/storage/docs/retry-strategy#python.
 MODIFIED_RETRY = DEFAULT_RETRY.with_deadline(300.0).with_delay(
@@ -31,6 +33,8 @@ MODIFIED_RETRY = DEFAULT_RETRY.with_deadline(300.0).with_delay(
 MAX_NUM_OBJECTS_TO_COMPOSE = 32
 
 COMPOSED_PREFIX = "dataflux-composed-objects/"
+
+current_composed_object = None
 
 
 def compose(
@@ -182,6 +186,9 @@ def dataflux_download(
     )
 
     i = 0
+    # Register the cleanup signal handler for SIGINT.
+    signal.signal(signal.SIGINT, term_signal_handler)
+    global current_composed_object
     while i < len(objects):
         curr_object_name = objects[i][0]
         curr_object_size = objects[i][1]
@@ -228,7 +235,7 @@ def dataflux_download(
                     objects_slice,
                     storage_client,
                 )
-
+                current_composed_object = composed_object
                 res.extend(
                     decompose(
                         project_name,
@@ -241,8 +248,23 @@ def dataflux_download(
 
                 try:
                     composed_object.delete(retry=MODIFIED_RETRY)
-                except Exception:
+                    current_composed_object = None
+                except Exception as e:
                     logging.exception(
-                        "exception thrown when deleting the composite object."
+                        f"exception while deleting the composite object: {e}"
                     )
     return res
+
+
+def clean_composed_object(composed_object):
+    if composed_object:
+        try:
+            composed_object.delete(retry=MODIFIED_RETRY)
+        except Exception as e:
+            logging.exception(f"exception while deleting composite object: {e}")
+
+
+def term_signal_handler(signal_num, frame):
+    print("Ctrl+C interrupt detected. Cleaning up and exiting...")
+    clean_composed_object(current_composed_object)
+    sys.exit(0)
