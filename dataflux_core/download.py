@@ -21,6 +21,10 @@ from google.cloud.storage.retry import DEFAULT_RETRY
 
 import uuid
 import logging
+import multiprocessing
+import itertools
+import math
+
 import signal
 import sys
 
@@ -154,6 +158,50 @@ class DataFluxDownloadOptimizationParams:
 
     def __init__(self, max_composite_object_size):
         self.max_composite_object_size = max_composite_object_size
+
+
+def dataflux_download_parallel(
+    project_name: str,
+    bucket_name: str,
+    objects: list[tuple[str, int]],
+    storage_client: object = None,
+    dataflux_download_optimization_params: DataFluxDownloadOptimizationParams = None,
+    parallelization: int = 1,
+) -> list[bytes]:
+    """Perform the DataFlux download algorithm in parallel to download the object contents as bytes and return.
+
+    Args:
+        project_name: the name of the GCP project.
+        bucket_name: the name of the GCS bucket that holds the objects to compose.
+            The function uploads the the composed object to this bucket too.
+        objects: A list of tuples which indicate the object names and sizes (in bytes) in the bucket.
+            Example: [("object_name_A", 1000), ("object_name_B", 2000)]
+        storage_client: the google.cloud.storage.Client initialized with the project.
+            If not defined, the function will initialize the client with the project_name.
+        dataflux_download_optimization_params: the paramemters used to optimize the download performance.
+        parallelization: The number of parallel processes that will simultaneously execute the download.
+    Returns:
+        the contents of the object in bytes.
+    """
+    chunk_size = math.ceil(len(objects) / parallelization)
+    chunks = [
+        objects[i * chunk_size : (i + 1) * chunk_size] for i in range(parallelization)
+    ]
+    with multiprocessing.Pool(processes=len(chunks)) as pool:
+        results = pool.starmap(
+            dataflux_download,
+            (
+                (
+                    project_name,
+                    bucket_name,
+                    chunk,
+                    storage_client,
+                    dataflux_download_optimization_params,
+                )
+                for chunk in chunks
+            ),
+        )
+        return list(itertools.chain.from_iterable(results))
 
 
 def dataflux_download(
