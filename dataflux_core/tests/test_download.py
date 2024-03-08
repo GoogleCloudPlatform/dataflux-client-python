@@ -73,6 +73,37 @@ class DownloadTestCase(unittest.TestCase):
                 f"expected only 3 objects in bucket, but found {len(bucket.blobs)}"
             )
 
+    def test_dataflux_download_parallel(self):
+        test_cases = [
+            {"name": "exceed number of items", "threads": 4},
+            {"name": "single thread", "threads": 1},
+            {"name": "standard", "threads": 2},
+        ]
+        bucket_name = "test_bucket"
+        objects = [("one", 3), ("two", 3), ("three", 5)]
+        client = fake_gcs.Client()
+        bucket = client.bucket(bucket_name)
+        bucket._add_file("one", bytes("one", "utf-8"))
+        bucket._add_file("two", bytes("two", "utf-8"))
+        bucket._add_file("three", bytes("three", "utf-8"))
+        params = download.DataFluxDownloadOptimizationParams(32)
+        expected_result = [b"one", b"two", b"three"]
+        for tc in test_cases:
+            result = download.dataflux_download_parallel(
+                "",
+                bucket_name,
+                objects,
+                client,
+                params,
+                tc["threads"],
+            )
+            self.assertEqual(result, expected_result)
+            # This checks for succesful deletion of the composed object.
+            if len(bucket.blobs) != 3:
+                self.fail(
+                    f"{tc['name']} expected only 3 objects in bucket, but found {len(bucket.blobs)}"
+                )
+
     def test_clean_composed_object(self):
         class ComposedObj:
             def __init__(self):
