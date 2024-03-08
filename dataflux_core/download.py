@@ -184,9 +184,11 @@ def dataflux_download_parallel(
         the contents of the object in bytes.
     """
     chunk_size = math.ceil(len(objects) / parallelization)
-    chunks = [
-        objects[i * chunk_size : (i + 1) * chunk_size] for i in range(parallelization)
-    ]
+    chunks = []
+    for i in range(parallelization):
+        chunk = objects[i * chunk_size : (i + 1) * chunk_size]
+        if chunk:
+            chunks.append(chunk)
     with multiprocessing.Pool(processes=len(chunks)) as pool:
         results = pool.starmap(
             dataflux_download,
