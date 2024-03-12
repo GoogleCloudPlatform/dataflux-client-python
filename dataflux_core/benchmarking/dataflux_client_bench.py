@@ -14,7 +14,7 @@
  limitations under the License.
 
  Example benchmark execution:
- python3 fast_list_bench.py --project=test-project --bucket=test-bucket --bucket-file-count=5 --bucket-file-size=172635220 --num-workers=5 --max-compose=32
+ python3 dataflux_client_bench.py --project=test-project --bucket=test-bucket --bucket-file-count=5 --bucket-file-size=172635220 --num-workers=5 --max-compose=32
  """
 
 import argparse
