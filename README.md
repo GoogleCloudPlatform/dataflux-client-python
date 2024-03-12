@@ -23,6 +23,18 @@ By default, fast list will only list objects of STANDARD class in GCS buckets. T
 
 The compose download component of the client uses the results of the fast list to efficiently download the files necessary for a machine learning workload. When downloading files from remote stores, small file size often bottlenecks the speed at which files can be downloaded. To avoid this bottleneck, compose download leverages the ability of GCS buckets to concatinate small files into larger composed files in GCS prior to downloading. This greatly improves download performance, particularly on datasets with very large numbers of small files.
 
+#### Multiple Download Options
+
+Looking at the [download code](dataflux_core/download.py) you will notice three distinct download functions. The default function used in the dataflux-pytorch client is `dataflux_download`. The other functions serve to improve performance for specific use cases.
+
+###### Parallel Download
+
+The `dataflux_download_parallel` function is the most performant stand-alone download function. When using the dataflux client library in isolation, this is the recommended download function. Parallelization must be tuned based on available CPU power and network bandwidth.
+
+###### Threaded Download
+
+The `dataflux_download_threaded` function allows for some amount of downlod parallelization while running within daemonic processes (e.g. a distributed ML workload leveraging [ray](https://www.ray.io/)). Daemonic processes are not permitted to spin up child processes, and thus threading must be used in these instances. Threading download performance is similar to that of multiprocessing for most use-cases, but loses out on performance as the thread/process count increases. Additionally, threading does not allow for signal interuption, so SIGINT cleanup triggers are disabled when running a threaded download.
+
 ## Getting Started
 
 To get started leveraging the dataflux client library, we encourage you to start from the [Dataflux Dataset for Pytorch](https://github.com/GoogleCloudPlatform/dataflux-pytorch). For an example of client-specific implementation, please see the [benchmark code](dataflux_core/benchmarking/dataflux_client_bench.py).

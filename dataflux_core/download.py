@@ -24,6 +24,8 @@ import logging
 import multiprocessing
 import itertools
 import math
+import queue
+import threading
 
 import signal
 import sys
@@ -160,6 +162,92 @@ class DataFluxDownloadOptimizationParams:
         self.max_composite_object_size = max_composite_object_size
 
 
+def df_download_thread(
+    results_queue: queue.Queue[list[bytes]],
+    project_name: str,
+    bucket_name: str,
+    objects: list[tuple[str, int]],
+    storage_client: object = None,
+    dataflux_download_optimization_params: DataFluxDownloadOptimizationParams = None,
+):
+    """Threading helper that calls dataflux_download and places results onto queue.
+
+    Args:
+        results_queue: the queue on which to put all download results.
+        project_name: the name of the GCP project.
+        bucket_name: the name of the GCS bucket that holds the objects to compose.
+            The function uploads the the composed object to this bucket too.
+        objects: A list of tuples which indicate the object names and sizes (in bytes) in the bucket.
+            Example: [("object_name_A", 1000), ("object_name_B", 2000)]
+        storage_client: the google.cloud.storage.Client initialized with the project.
+            If not defined, the function will initialize the client with the project_name.
+        dataflux_download_optimization_params: the paramemters used to optimize the download performance.
+    """
+    result = dataflux_download(
+        project_name,
+        bucket_name,
+        objects,
+        storage_client,
+        dataflux_download_optimization_params,
+        # Always signify threading enabled so that signal handling is disabled.
+        threading_enabled=True,
+    )
+    results_queue.put(result)
+
+
+def dataflux_download_threaded(
+    project_name: str,
+    bucket_name: str,
+    objects: list[tuple[str, int]],
+    storage_client: object = None,
+    dataflux_download_optimization_params: DataFluxDownloadOptimizationParams = None,
+    threads: int = 1,
+) -> list[bytes]:
+    """Perform the DataFlux download algorithm threaded to performantly download the object contents as bytes and return.
+
+    Args:
+        project_name: the name of the GCP project.
+        bucket_name: the name of the GCS bucket that holds the objects to compose.
+            The function uploads the the composed object to this bucket too.
+        objects: A list of tuples which indicate the object names and sizes (in bytes) in the bucket.
+            Example: [("object_name_A", 1000), ("object_name_B", 2000)]
+        storage_client: the google.cloud.storage.Client initialized with the project.
+            If not defined, the function will initialize the client with the project_name.
+        dataflux_download_optimization_params: the paramemters used to optimize the download performance.
+        threads: The number of threads on which to download at any given time.
+    Returns:
+        the contents of the object in bytes.
+    """
+    chunk_size = math.ceil(len(objects) / threads)
+    chunks = []
+    for i in range(threads):
+        chunk = objects[i * chunk_size : (i + 1) * chunk_size]
+        if chunk:
+            chunks.append(chunk)
+    results_queue = queue.Queue()
+    thread_list = []
+    for chunk in chunks:
+        thread = threading.Thread(
+            target=df_download_thread,
+            args=(
+                results_queue,
+                project_name,
+                bucket_name,
+                chunk,
+                storage_client,
+                dataflux_download_optimization_params,
+            ),
+        )
+        thread_list.append(thread)
+        thread.start()
+    for thread in thread_list:
+        thread.join()
+    results = []
+    while not results_queue.empty():
+        results.extend(results_queue.get())
+    return results
+
+
 def dataflux_download_parallel(
     project_name: str,
     bucket_name: str,
@@ -212,6 +300,7 @@ def dataflux_download(
     objects: list[tuple[str, int]],
     storage_client: object = None,
     dataflux_download_optimization_params: DataFluxDownloadOptimizationParams = None,
+    threading_enabled=False,
 ) -> list[bytes]:
     """Perform the DataFlux download algorithm to download the object contents as bytes and return.
 
@@ -237,7 +326,8 @@ def dataflux_download(
 
     i = 0
     # Register the cleanup signal handler for SIGINT.
-    signal.signal(signal.SIGINT, term_signal_handler)
+    if not threading_enabled:
+        signal.signal(signal.SIGINT, term_signal_handler)
     global current_composed_object
     while i < len(objects):
         curr_object_name = objects[i][0]
