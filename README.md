@@ -29,7 +29,7 @@ Looking at the [download code](dataflux_core/download.py) you will notice three 
 
 ###### Parallel Download
 
-The `dataflux_download_parallel` function is the most performative stand-alone download function. When using the dataflux client library in isolation, this is the recommended download function. Parallelization must be tuned based on available CPU power and network bandwidth.
+The `dataflux_download_parallel` function is the most performant stand-alone download function. When using the dataflux client library in isolation, this is the recommended download function. Parallelization must be tuned based on available CPU power and network bandwidth.
 
 ###### Threaded Download
 
