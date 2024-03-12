@@ -69,7 +69,7 @@ def main() -> None:
             f"Expected {args.bucket_file_size} bytes but got {total_size} bytes"
         )
     print(
-        f"{total_size} bytes across {len(list_result)} objects downloaded in {download_end_time - download_start_time} seconds using {args.threads} processes"
+        f"{total_size} bytes across {len(list_result)} objects downloaded in {download_end_time - download_start_time} seconds using {args.threads} threads"
     )
 
 
