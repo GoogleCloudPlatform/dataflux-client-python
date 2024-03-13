@@ -26,6 +26,7 @@ import itertools
 import math
 import queue
 import threading
+from typing import Iterator
 
 import signal
 import sys
@@ -394,6 +395,106 @@ def dataflux_download(
                         f"exception while deleting the composite object: {e}"
                     )
     return res
+
+
+def dataflux_download_lazy(
+    project_name: str,
+    bucket_name: str,
+    objects: list[tuple[str, int]],
+    storage_client: object = None,
+    dataflux_download_optimization_params: DataFluxDownloadOptimizationParams = None,
+    threading_enabled=False,
+) -> Iterator[bytes]:
+    """Perform the DataFlux download algorithm to download the object contents as bytes in a lazy fashion.
+
+    Args:
+        project_name: the name of the GCP project.
+        bucket_name: the name of the GCS bucket that holds the objects to compose.
+            The function uploads the the composed object to this bucket too.
+        objects: A list of tuples which indicate the object names and sizes (in bytes) in the bucket.
+            Example: [("object_name_A", 1000), ("object_name_B", 2000)]
+        storage_client: the google.cloud.storage.Client initialized with the project.
+            If not defined, the function will initialize the client with the project_name.
+        dataflux_download_optimization_params: the paramemters used to optimize the download performance.
+    Returns:
+        An iterator of the contents of the object in bytes.
+    """
+    if storage_client is None:
+        storage_client = storage.Client(project=project_name)
+
+    max_composite_object_size = (
+        dataflux_download_optimization_params.max_composite_object_size
+    )
+
+    i = 0
+    # Register the cleanup signal handler for SIGINT.
+    if not threading_enabled:
+        signal.signal(signal.SIGINT, term_signal_handler)
+    global current_composed_object
+    while i < len(objects):
+        curr_object_name = objects[i][0]
+        curr_object_size = objects[i][1]
+
+        if curr_object_size > max_composite_object_size:
+            # Download the single object.
+            curr_object_content = download_single(
+                storage_client=storage_client,
+                bucket_name=bucket_name,
+                object_name=curr_object_name,
+            )
+            yield from [curr_object_content]
+            i += 1
+        else:
+            # Dynamically compose and decompose based on the object size.
+            objects_slice = []
+            curr_size = 0
+
+            while (
+                i < len(objects)
+                and curr_size <= max_composite_object_size
+                and len(objects_slice) < MAX_NUM_OBJECTS_TO_COMPOSE
+            ):
+                curr_size += objects[i][1]
+                objects_slice.append(objects[i])
+                i += 1
+
+            if len(objects_slice) == 1:
+                object_name = objects_slice[0][0]
+                curr_object_content = download_single(
+                    storage_client=storage_client,
+                    bucket_name=bucket_name,
+                    object_name=object_name,
+                )
+                yield from [curr_object_content]
+            else:
+                # If the number of objects > 1, we want to compose, download, decompose and delete the composite object.
+                # Need to create a unique composite name to avoid mutation on the same object among processes.
+                composed_object_name = COMPOSED_PREFIX + str(uuid.uuid4())
+                composed_object = compose(
+                    project_name,
+                    bucket_name,
+                    composed_object_name,
+                    objects_slice,
+                    storage_client,
+                )
+                current_composed_object = composed_object
+                yield from (
+                    decompose(
+                        project_name,
+                        bucket_name,
+                        composed_object_name,
+                        objects_slice,
+                        storage_client,
+                    )
+                )
+
+                try:
+                    composed_object.delete(retry=MODIFIED_RETRY)
+                    current_composed_object = None
+                except Exception as e:
+                    logging.exception(
+                        f"exception while deleting the composite object: {e}"
+                    )
 
 
 def clean_composed_object(composed_object):
