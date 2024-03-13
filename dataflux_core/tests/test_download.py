@@ -135,6 +135,44 @@ class DownloadTestCase(unittest.TestCase):
                     f"{tc['name']} expected only 3 objects in bucket, but found {len(bucket.blobs)}"
                 )
 
+    def test_dataflux_download_lazy(self):
+        test_cases = [
+            {
+                "desc": "Need to compose objects before downloading",
+                "max_composite_object_size": 100,
+            },
+            {
+                "desc": "Do not need to compose objects before downloading",
+                "max_composite_object_size": 0,
+            },
+        ]
+
+        for tc in test_cases:
+            bucket_name = "test_bucket"
+            objects = [("one", 3), ("two", 3), ("three", 5)]
+            client = fake_gcs.Client()
+            bucket = client.bucket(bucket_name)
+            bucket._add_file("one", bytes("one", "utf-8"))
+            bucket._add_file("two", bytes("two", "utf-8"))
+            bucket._add_file("three", bytes("three", "utf-8"))
+            params = download.DataFluxDownloadOptimizationParams(
+                tc["max_composite_object_size"]
+            )
+            expected_result = [b"one", b"two", b"three"]
+            result = download.dataflux_download_lazy(
+                "", bucket_name, objects, client, params
+            )
+            self.assertEqual(
+                list(result),
+                expected_result,
+                f"test {tc['desc']} got {list(result)} objects, wanted {expected_result}",
+            )
+            # This checks for succesful deletion of the composed object.
+            if len(bucket.blobs) != 3:
+                self.fail(
+                    f"test {tc['desc']} expected only 3 objects in bucket, but found {len(bucket.blobs)}"
+                )
+
     def test_clean_composed_object(self):
         class ComposedObj:
             def __init__(self):
