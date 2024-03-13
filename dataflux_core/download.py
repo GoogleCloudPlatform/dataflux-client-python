@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from google.cloud import storage
 from google.cloud.storage.retry import DEFAULT_RETRY
+from google.api_core.client_info import ClientInfo
 
 import uuid
 import logging
@@ -72,7 +73,10 @@ def compose(
         )
 
     if storage_client is None:
-        storage_client = storage.Client(project=project_name)
+        storage_client = storage.Client(
+            project=project_name,
+            client_info=ClientInfo(user_agent="dataflux/0.0"),
+        )
 
     bucket = storage_client.bucket(bucket_name)
     destination = bucket.blob(destination_blob_name)
@@ -110,7 +114,10 @@ def decompose(
         the contents (in bytes) of the decomposed objects.
     """
     if storage_client is None:
-        storage_client = storage.Client(project=project_name)
+        storage_client = storage.Client(
+            project=project_name,
+            client_info=ClientInfo(user_agent="dataflux/0.0"),
+        )
 
     res = []
     composed_object_content = download_single(
@@ -318,7 +325,10 @@ def dataflux_download(
         the contents of the object in bytes.
     """
     if storage_client is None:
-        storage_client = storage.Client(project=project_name)
+        storage_client = storage.Client(
+            project=project_name,
+            client_info=ClientInfo(user_agent="dataflux/0.0"),
+        )
 
     res = []
     max_composite_object_size = (
@@ -420,7 +430,10 @@ def dataflux_download_lazy(
         An iterator of the contents of the object in bytes.
     """
     if storage_client is None:
-        storage_client = storage.Client(project=project_name)
+        storage_client = storage.Client(
+            project=project_name,
+            client_info=ClientInfo(user_agent="dataflux/0.0"),
+        )
 
     max_composite_object_size = (
         dataflux_download_optimization_params.max_composite_object_size
