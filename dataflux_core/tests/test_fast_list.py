@@ -92,7 +92,7 @@ class FastListTest(unittest.TestCase):
                 "directory_obj_count": 10,
                 "skip_compose": True,
                 "list_directory_objects": True,
-                "expected_objects": 1001000,
+                "expected_objects": 10010,
                 "expected_api_calls": 3,
             },
             {
