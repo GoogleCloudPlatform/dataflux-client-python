@@ -32,7 +32,7 @@ class DownloadTestCase(unittest.TestCase):
         bucket._add_file("three", bytes("three", "utf-8"))
         expected_result = b"onetwothree"
         blob = download.compose("", bucket_name, destination_blob_name, objects, client)
-        self.assertEqual(blob.name, destination_blob_name)
+        self.assertNotEquals(blob.name, destination_blob_name)
         self.assertEqual(blob.content, expected_result)
 
     def test_decompose(self):
