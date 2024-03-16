@@ -29,7 +29,6 @@ import queue
 import threading
 from typing import Iterator
 from time import time
-import statistics
 
 import signal
 import sys
@@ -45,8 +44,6 @@ MAX_NUM_OBJECTS_TO_COMPOSE = 32
 COMPOSED_PREFIX = "dataflux-composed-objects/"
 
 current_composed_object = None
-
-all_runs = []
 
 
 def compose(
@@ -416,10 +413,6 @@ def dataflux_download(
     t1 = time()
     logging.error(
         f"[dataflux_download] downloaded {len(res)} objects in {t1 - t0} seconds"
-    )
-    all_runs.append(t1 - t0)
-    logging.error(
-        f"[dataflux_download] summary: downloaded {len(all_runs)} times with an average of {statistics.mean(all_runs)} seconds."
     )
     return res
 
