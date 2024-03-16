@@ -28,6 +28,7 @@ import math
 import queue
 import threading
 from typing import Iterator
+from time import time
 
 import signal
 import sys
@@ -226,6 +227,7 @@ def dataflux_download_threaded(
     Returns:
         the contents of the object in bytes.
     """
+    t0 = time()
     chunk_size = math.ceil(len(objects) / threads)
     chunks = []
     for i in range(threads):
@@ -253,6 +255,9 @@ def dataflux_download_threaded(
     results = []
     while not results_queue.empty():
         results.extend(results_queue.get())
+
+    t1 = time()
+    print(f"threading -- downloaded {len(results)} in {t1-t0} seconds")
     return results
 
 
@@ -324,6 +329,7 @@ def dataflux_download(
     Returns:
         the contents of the object in bytes.
     """
+    t0 = time()
     if storage_client is None:
         storage_client = storage.Client(
             project=project_name,
@@ -404,6 +410,8 @@ def dataflux_download(
                     logging.exception(
                         f"exception while deleting the composite object: {e}"
                     )
+    t1 = time()
+    print(f"[dataflux_download] downloaded {len(res)} objects in {t1 - t0} seconds")
     return res
 
 
