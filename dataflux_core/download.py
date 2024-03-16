@@ -257,7 +257,7 @@ def dataflux_download_threaded(
         results.extend(results_queue.get())
 
     t1 = time()
-    print(f"threading -- downloaded {len(results)} in {t1-t0} seconds")
+    logging.error(f"threading -- downloaded {len(results)} in {t1-t0} seconds")
     return results
 
 
@@ -411,7 +411,9 @@ def dataflux_download(
                         f"exception while deleting the composite object: {e}"
                     )
     t1 = time()
-    print(f"[dataflux_download] downloaded {len(res)} objects in {t1 - t0} seconds")
+    logging.error(
+        f"[dataflux_download] downloaded {len(res)} objects in {t1 - t0} seconds"
+    )
     return res
 
 
