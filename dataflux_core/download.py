@@ -232,13 +232,13 @@ def dataflux_download_threaded(
         chunk = objects[i * chunk_size : (i + 1) * chunk_size]
         if chunk:
             chunks.append(chunk)
-    results_queue = queue.Queue()
+    results_queues = [queue.Queue() for _ in chunks]
     thread_list = []
-    for chunk in chunks:
+    for i, chunk in enumerate(chunks):
         thread = threading.Thread(
             target=df_download_thread,
             args=(
-                results_queue,
+                results_queues[i],
                 project_name,
                 bucket_name,
                 chunk,
@@ -251,8 +251,9 @@ def dataflux_download_threaded(
     for thread in thread_list:
         thread.join()
     results = []
-    while not results_queue.empty():
-        results.extend(results_queue.get())
+    for q in results_queues:
+        while not q.empty():
+            results.extend(q.get())
     return results
 
 
