@@ -13,11 +13,13 @@ The fast list component of this client leverages Python multiprocessing to paral
 By default, fast list will only list objects of STANDARD class in GCS buckets. This can be overridden by passing in a string list of storage classes to include while running the Listing Controller. Note that this default behavior was chosen to avoid the cost associated with downloading non-standard GCS classes. Details on GCS Storage Classes can be further explored in the [Storage Class Documentation](https://cloud.google.com/storage/docs/storage-classes).
 
 ### Fast List Benchmark Results
-|File Count / Avg Size|VM Core Count|List Time Without Dataflux|List Time With Dataflux|
-|---------------------|-------------|--------------------------|-----------------------|
-|10013 Obj / 643 KB   |48 Core      |2.35s                     |6.06s                  |
-|578411 Obj / 350 KB  |48 Core      |30.70s                    |9.39s                  |
-|1999002 Obj / 623 KB |48 Core      |117.61s                   |12.45s                 |
+|File Count|VM Core Count|List Time Without Dataflux|List Time With Dataflux|
+|------------|-------------|--------------------------|-----------------------|
+|17944239 Obj|48 Core      |1630.75s                  |79.55s                 |
+|5000000 Obj |48 Core      |289.95s                   |23.43s                 |
+|1999002 Obj |48 Core      |117.61s                   |12.45s                 |
+|578411 Obj  |48 Core      |30.70s                    |9.39s                  |
+|10013 Obj   |48 Core      |2.35s                     |6.06s                  |
 
 ## Compose Download
 
