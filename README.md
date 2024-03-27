@@ -19,7 +19,10 @@ target_folder_prefix = "folder1/"
 
 print("Fast list operation starting...")
 list_result = fast_list.ListingController(
-    number_of_workers, project, bucket, prefix=target_folder_prefix
+    max_parallelism=number_of_workers,
+    project=project,
+    bucket=bucket,
+    prefix=target_folder_prefix,
 ).run()
 ```
 
@@ -56,10 +59,10 @@ download_params = download.DataFluxDownloadOptimizationParams(
 
 print("Download operation starting...")
 download_result = download.dataflux_download(
-    project,
-    bucket,
+    project_name=project,
+    bucket_name=bucket,
     # The list_results parameter is the value returned by fast list in the previous code example.
-    list_result,
+    objects=list_result,
     dataflux_download_optimization_params=download_params,
 )
 ```
