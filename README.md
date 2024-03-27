@@ -81,7 +81,7 @@ The `dataflux_download_threaded` function allows for some amount of downlod para
 
 ### Dataflux Download Benchmark Results
 
-These benchmarks were performed on a 48 core virtual machine on files of approximately 10kb each.
+These benchmarks were performed on a n2-standard-48 48 vCPU virtual machine on files of approximately 10kb each.
 
 |Number of Objects|Standard Linear Download|Dataflux Compose Download|Dataflux Threaded Compose Download (48 Threads)|Dataflux Parallel Compose Download (48 Processes)|
 |-----------------|------------------------|-------------------------|-----------------------------------------------|-------------------------------------------------|
