@@ -8,6 +8,24 @@ This is the client library backing the [Dataflux Dataset for Pytorch](https://gi
 
 The fast list component of this client leverages Python multiprocessing to parallelize the listing of files within a GCS bucket. It does this by implementing a workstealing algorithm, where each worker in the list operation is able to steal work from its siblings once it has finished all currently slated listing work. This parallelization leads to a real world speed increase up to 10 times faster than sequential listing. Note that paralellization is limited by the machine on which the client runs, and optimal performance is typically found with a worker count that is 1:1 with the available cores. Benchmarking has demonstrated that the larger the object count, the better Dataflux performs when compared to a linear listing.
 
+### Example Code
+```python
+from dataflux_core import fast_list
+
+number_of_workers = 20
+project = "MyProject"
+bucket = "TargetBucket"
+target_folder_prefix = "folder1/"
+
+print("Fast list operation starting...")
+list_result = fast_list.ListingController(
+    max_parallelism=number_of_workers,
+    project=project,
+    bucket=bucket,
+    prefix=target_folder_prefix,
+).run()
+```
+
 #### Storage Class
 
 By default, fast list will only list objects of STANDARD class in GCS buckets. This can be overridden by passing in a string list of storage classes to include while running the Listing Controller. Note that this default behavior was chosen to avoid the cost associated with downloading non-standard GCS classes. Details on GCS Storage Classes can be further explored in the [Storage Class Documentation](https://cloud.google.com/storage/docs/storage-classes).
@@ -24,6 +42,30 @@ By default, fast list will only list objects of STANDARD class in GCS buckets. T
 ## Compose Download
 
 The compose download component of the client uses the results of the fast list to efficiently download the files necessary for a machine learning workload. When downloading files from remote stores, small file size often bottlenecks the speed at which files can be downloaded. To avoid this bottleneck, compose download leverages the ability of GCS buckets to concatinate small files into larger composed files in GCS prior to downloading. This greatly improves download performance, particularly on datasets with very large numbers of small files.
+
+### Example Code
+```python
+from dataflux_core import download
+
+# The maximum size in bytes of a composite download object.
+# If this value is set to 0, no composition will occur.
+max_compose_bytes = 10000000
+project = "MyProject"
+bucket = "TargetBucket"
+
+download_params = download.DataFluxDownloadOptimizationParams(
+    max_compose_bytes
+)
+
+print("Download operation starting...")
+download_result = download.dataflux_download(
+    project_name=project,
+    bucket_name=bucket,
+    # The list_results parameter is the value returned by fast list in the previous code example.
+    objects=list_result,
+    dataflux_download_optimization_params=download_params,
+)
+```
 
 #### Multiple Download Options
 
