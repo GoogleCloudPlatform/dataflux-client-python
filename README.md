@@ -79,6 +79,17 @@ The `dataflux_download_parallel` function is the most performant stand-alone dow
 
 The `dataflux_download_threaded` function allows for some amount of downlod parallelization while running within daemonic processes (e.g. a distributed ML workload leveraging [ray](https://www.ray.io/)). Daemonic processes are not permitted to spin up child processes, and thus threading must be used in these instances. Threading download performance is similar to that of multiprocessing for most use-cases, but loses out on performance as the thread/process count increases. Additionally, threading does not allow for signal interuption, so SIGINT cleanup triggers are disabled when running a threaded download.
 
+### Dataflux Download Benchmark Results
+
+These benchmarks were performed on a 48 core virtual machine on files of approximately 10kb each.
+
+|Number of Objects|Standard Linear Download|Dataflux Compose Download|Dataflux Threaded Compose Download (48 Threads)|Dataflux Parallel Compose Download (48 Processes)|
+|-----------------|------------------------|-------------------------|-----------------------------------------------|-------------------------------------------------|
+|111              |18.27 Seconds           |5.17 Seconds             |3.94 Seconds                                   |2.06 Seconds                                     |
+|1111             |176.22 Seconds          |61.78 Seconds            |5.21 Seconds                                   |3.14 Seconds                                     |
+|11098            |1396.98 Seconds         |392.23 Seconds           |16.85 Seconds                                  |14.88 Seconds                                    |
+
+
 ## Getting Started
 
 To get started leveraging the dataflux client library, we encourage you to start from the [Dataflux Dataset for Pytorch](https://github.com/GoogleCloudPlatform/dataflux-pytorch). For an example of client-specific implementation, please see the [benchmark code](dataflux_core/benchmarking/dataflux_client_bench.py).
