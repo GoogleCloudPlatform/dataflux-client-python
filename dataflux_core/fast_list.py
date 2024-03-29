@@ -103,6 +103,9 @@ class ListWorker(object):
         self.api_call_count = 0
         self.max_retries = max_retries
 
+        if self.start_range == "" and self.prefix:
+            self.start_range = self.prefix
+
     def wait_for_work(self) -> bool:
         """Indefinitely waits for available work and consumes it once available.
 
