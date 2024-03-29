@@ -75,7 +75,7 @@ class ListWorker(object):
         client: storage.Client = None,
         skip_compose: bool = True,
         list_directory_objects: bool = False,
-        prefix: str = None,
+        prefix: str = "",
         allowed_storage_classes: list[str] = DEFAULT_ALLOWED_CLASS,
         max_retries: int = 5,
     ):
@@ -102,9 +102,6 @@ class ListWorker(object):
         self.allowed_storage_classes = allowed_storage_classes
         self.api_call_count = 0
         self.max_retries = max_retries
-
-        if self.start_range == "" and self.prefix:
-            self.start_range = self.prefix
 
     def wait_for_work(self) -> bool:
         """Indefinitely waits for available work and consumes it once available.
@@ -166,8 +163,10 @@ class ListWorker(object):
             try:
                 list_blob_args = {
                     "max_results": self.max_results,
-                    "start_offset": self.start_range,
-                    "end_offset": self.end_range,
+                    "start_offset": self.prefix + self.start_range,
+                    "end_offset": (
+                        "" if not self.end_range else self.prefix + self.end_range
+                    ),
                 }
                 if self.prefix:
                     list_blob_args["prefix"] = self.prefix
@@ -187,7 +186,7 @@ class ListWorker(object):
                         and blob.storage_class in self.allowed_storage_classes
                     ):
                         self.results.add((blob.name, blob.size))
-                    self.start_range = blob.name
+                    self.start_range = blob.name.removeprefix(self.prefix)
                     if i == self.max_results:
                         # Only allow work stealing when paging.
                         has_results = True
@@ -240,7 +239,7 @@ def run_list_worker(
     end_range: str,
     client: storage.Client = None,
     skip_compose: bool = True,
-    prefix: str = None,
+    prefix: str = "",
     allowed_storage_classes: list[str] = DEFAULT_ALLOWED_CLASS,
 ) -> None:
     """Helper function to execute a ListWorker.
@@ -256,7 +255,7 @@ def run_list_worker(
       unidle_queue: Multiprocessing queue pushed to when the worker has successfully stolen work.
       results_queue: Multiprocessing queue on which the worker pushes its listing results onto.
       metadata_queue: Multiprocessing queue on which the worker pushes tracking metadata.
-      start_range: Stirng start range worker will begin listing from.
+      start_range: String start range worker will begin listing from.
       end_range: String end range worker will list until.
       client: The GCS storage client. When not provided, will be derived from background auth.
       skip_compose: When true, skip listing files with the composed object prefix.
@@ -306,7 +305,7 @@ class ListingController(object):
         bucket: str,
         sort_results: bool = False,
         skip_compose: bool = True,
-        prefix: str = None,
+        prefix: str = "",
         allowed_storage_classes: list[str] = DEFAULT_ALLOWED_CLASS,
     ):
         # The maximum number of threads utilized in the fast list operation.
