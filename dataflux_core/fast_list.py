@@ -98,7 +98,7 @@ class ListWorker(object):
         self.default_alph = "a"
         self.skip_compose = skip_compose
         self.list_directory_objects = list_directory_objects
-        self.prefix = prefix
+        self.prefix = prefix if prefix else ""
         self.allowed_storage_classes = allowed_storage_classes
         self.api_call_count = 0
         self.max_retries = max_retries
