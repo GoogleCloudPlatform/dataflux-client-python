@@ -186,6 +186,7 @@ class ListWorker(object):
                         and blob.storage_class in self.allowed_storage_classes
                     ):
                         self.results.add((blob.name, blob.size))
+                    # Remove the prefix from the name so that range calculations remain prefix-agnostic.
                     self.start_range = blob.name.removeprefix(self.prefix)
                     if i == self.max_results:
                         # Only allow work stealing when paging.
