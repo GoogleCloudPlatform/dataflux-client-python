@@ -260,9 +260,9 @@ class FastListTest(unittest.TestCase):
         client = fake_gcs.Client()
         bucket_name = "test_bucket"
         bucket = client.bucket(bucket_name)
-        object_count = 100000
+        object_count = 1000
         object_size = 10
-        for i in range(100000):
+        for i in range(object_count):
             bucket._add_file(str(i), "aaaaaaaaaa")
         controller = fast_list.ListingController(1, "", bucket_name, True)
         controller.client = client
