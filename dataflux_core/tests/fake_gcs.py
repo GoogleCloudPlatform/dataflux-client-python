@@ -38,7 +38,7 @@ class Bucket(object):
         max_results: int = 0,
         start_offset: str = "",
         end_offset: str = "",
-        prefix=None,
+        prefix: str = "",
     ) -> list[Blob]:
         results = []
         for name in sorted(self.blobs):
@@ -47,7 +47,7 @@ class Bucket(object):
             if (not start_offset or name >= start_offset) and (
                 not end_offset or name < end_offset
             ):
-                if not prefix or name.startswith(prefix):
+                if name.startswith(prefix):
                     results.append(self.blobs[name])
         return results
 
