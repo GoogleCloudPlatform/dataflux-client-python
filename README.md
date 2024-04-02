@@ -39,9 +39,9 @@ By default, fast list will only list objects of STANDARD class in GCS buckets. T
 |578411 Obj  |48 Core      |30.70s                    |9.39s                  |
 |10013 Obj   |48 Core      |2.35s                     |6.06s                  |
 
-## Compose Download
+## Composed Download
 
-The compose download component of the client uses the results of the fast list to efficiently download the files necessary for a machine learning workload. When downloading files from remote stores, small file size often bottlenecks the speed at which files can be downloaded. To avoid this bottleneck, compose download leverages the ability of GCS buckets to concatinate small files into larger composed files in GCS prior to downloading. This greatly improves download performance, particularly on datasets with very large numbers of small files.
+The composed download component of the client uses the results of the fast list to efficiently download the files necessary for a machine learning workload. When downloading files from remote stores, small file size often bottlenecks the speed at which files can be downloaded. To avoid this bottleneck, composed download leverages the [GCS Compose Objects API](https://cloud.google.com/storage/docs/composing-objects) to concatinate small files into larger composed files in GCS prior to downloading. This greatly improves download performance, particularly on datasets with very large numbers of small files.
 
 ### Example Code
 ```python
@@ -83,11 +83,11 @@ The `dataflux_download_threaded` function allows for some amount of downlod para
 
 These benchmarks were performed on a n2-standard-48 48 vCPU virtual machine on files of approximately 10kb each.
 
-|Number of Objects|Standard Linear Download|Dataflux Compose Download|Dataflux Threaded Compose Download (48 Threads)|Dataflux Parallel Compose Download (48 Processes)|
-|-----------------|------------------------|-------------------------|-----------------------------------------------|-------------------------------------------------|
-|111              |18.27 Seconds           |5.17 Seconds             |3.94 Seconds                                   |2.06 Seconds                                     |
-|1111             |176.22 Seconds          |61.78 Seconds            |5.21 Seconds                                   |3.14 Seconds                                     |
-|11098            |1396.98 Seconds         |392.23 Seconds           |16.85 Seconds                                  |14.88 Seconds                                    |
+|Number of Objects|Standard Linear Download|Dataflux Composed Download|Dataflux Threaded Composed Download (48 Threads)|Dataflux Parallel Composed Download (48 Processes)|
+|-----------------|------------------------|--------------------------|------------------------------------------------|--------------------------------------------------|
+|111              |18.27 Seconds           |5.17 Seconds              |3.94 Seconds                                    |2.06 Seconds                                      |
+|1111             |176.22 Seconds          |61.78 Seconds             |5.21 Seconds                                    |3.14 Seconds                                      |
+|11098            |1396.98 Seconds         |392.23 Seconds            |16.85 Seconds                                   |14.88 Seconds                                     |
 
 
 ## Getting Started
