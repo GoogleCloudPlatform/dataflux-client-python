@@ -29,6 +29,22 @@ from google.api_core.client_info import ClientInfo
 DEFAULT_ALLOWED_CLASS = ["STANDARD"]
 
 
+def remove_prefix(text: str, prefix: str):
+    """Helper function that removes prefix from a string.
+
+    Args:
+        text: String of text to trim a prefix from.
+        prefix: String of text that will be trimmed from text.
+
+    Returns:
+        Text value with the specified prefix removed.
+    """
+    # Note that as of python 3.9 removeprefix is built into string.
+    if text.startswith(prefix):
+        return text[len(prefix) :]
+    return text
+
+
 class ListWorker(object):
     """Worker that lists a range of objects from a GCS bucket.
 
@@ -187,7 +203,7 @@ class ListWorker(object):
                     ):
                         self.results.add((blob.name, blob.size))
                     # Remove the prefix from the name so that range calculations remain prefix-agnostic.
-                    self.start_range = blob.name.removeprefix(self.prefix)
+                    self.start_range = remove_prefix(blob.name, self.prefix)
                     if i == self.max_results:
                         # Only allow work stealing when paging.
                         has_results = True
