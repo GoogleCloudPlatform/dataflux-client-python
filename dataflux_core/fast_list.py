@@ -203,6 +203,8 @@ class ListWorker(object):
                     ):
                         self.results.add((blob.name, blob.size))
                     # Remove the prefix from the name so that range calculations remain prefix-agnostic.
+                    # This is necessary due to the unbounded end-range when splitting string namespaces
+                    # of unknown size.
                     self.start_range = remove_prefix(blob.name, self.prefix)
                     if i == self.max_results:
                         # Only allow work stealing when paging.
