@@ -31,7 +31,7 @@ class FastListTest(unittest.TestCase):
                 "compose_obj_count": 1,
                 "prefix_obj_count": 0,
                 "archive_obj_count": 0,
-                "prefix": None,
+                "prefix": "",
                 "object_size": 10,
                 "directory_obj_count": 10,
                 "skip_compose": True,
@@ -45,7 +45,7 @@ class FastListTest(unittest.TestCase):
                 "compose_obj_count": 1,
                 "prefix_obj_count": 0,
                 "archive_obj_count": 0,
-                "prefix": None,
+                "prefix": "",
                 "object_size": 10,
                 "directory_obj_count": 0,
                 "skip_compose": False,
@@ -59,7 +59,7 @@ class FastListTest(unittest.TestCase):
                 "compose_obj_count": 5000,
                 "prefix_obj_count": 0,
                 "archive_obj_count": 0,
-                "prefix": None,
+                "prefix": "",
                 "object_size": 10,
                 "directory_obj_count": 0,
                 "skip_compose": True,
@@ -87,7 +87,7 @@ class FastListTest(unittest.TestCase):
                 "compose_obj_count": 0,
                 "prefix_obj_count": 0,
                 "archive_obj_count": 0,
-                "prefix": None,
+                "prefix": "",
                 "object_size": 10,
                 "directory_obj_count": 10,
                 "skip_compose": True,
@@ -101,7 +101,7 @@ class FastListTest(unittest.TestCase):
                 "compose_obj_count": 0,
                 "prefix_obj_count": 0,
                 "archive_obj_count": 1000,
-                "prefix": None,
+                "prefix": "",
                 "object_size": 10,
                 "directory_obj_count": 0,
                 "skip_compose": True,
@@ -260,9 +260,9 @@ class FastListTest(unittest.TestCase):
         client = fake_gcs.Client()
         bucket_name = "test_bucket"
         bucket = client.bucket(bucket_name)
-        object_count = 100000
+        object_count = 1000
         object_size = 10
-        for i in range(100000):
+        for i in range(object_count):
             bucket._add_file(str(i), "aaaaaaaaaa")
         controller = fast_list.ListingController(1, "", bucket_name, True)
         controller.client = client

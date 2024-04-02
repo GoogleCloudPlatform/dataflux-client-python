@@ -31,7 +31,7 @@ def parse_args():
     parser.add_argument("--num-workers", type=int, default=10)
     parser.add_argument("--max-compose-bytes", type=int, default=100000000)
     parser.add_argument("--parallelization", type=int, default=20)
-    parser.add_argument("--prefix", type=str, default=None)
+    parser.add_argument("--prefix", type=str, default="")
     return parser.parse_args()
 
 

@@ -29,6 +29,22 @@ from google.api_core.client_info import ClientInfo
 DEFAULT_ALLOWED_CLASS = ["STANDARD"]
 
 
+def remove_prefix(text: str, prefix: str):
+    """Helper function that removes prefix from a string.
+
+    Args:
+        text: String of text to trim a prefix from.
+        prefix: String of text that will be trimmed from text.
+
+    Returns:
+        Text value with the specified prefix removed.
+    """
+    # Note that as of python 3.9 removeprefix is built into string.
+    if text.startswith(prefix):
+        return text[len(prefix) :]
+    return text
+
+
 class ListWorker(object):
     """Worker that lists a range of objects from a GCS bucket.
 
@@ -75,7 +91,7 @@ class ListWorker(object):
         client: storage.Client = None,
         skip_compose: bool = True,
         list_directory_objects: bool = False,
-        prefix: str = None,
+        prefix: str = "",
         allowed_storage_classes: list[str] = DEFAULT_ALLOWED_CLASS,
         max_retries: int = 5,
     ):
@@ -98,7 +114,7 @@ class ListWorker(object):
         self.default_alph = "a"
         self.skip_compose = skip_compose
         self.list_directory_objects = list_directory_objects
-        self.prefix = prefix
+        self.prefix = prefix if prefix else ""
         self.allowed_storage_classes = allowed_storage_classes
         self.api_call_count = 0
         self.max_retries = max_retries
@@ -163,8 +179,10 @@ class ListWorker(object):
             try:
                 list_blob_args = {
                     "max_results": self.max_results,
-                    "start_offset": self.start_range,
-                    "end_offset": self.end_range,
+                    "start_offset": self.prefix + self.start_range,
+                    "end_offset": (
+                        "" if not self.end_range else self.prefix + self.end_range
+                    ),
                 }
                 if self.prefix:
                     list_blob_args["prefix"] = self.prefix
@@ -184,7 +202,10 @@ class ListWorker(object):
                         and blob.storage_class in self.allowed_storage_classes
                     ):
                         self.results.add((blob.name, blob.size))
-                    self.start_range = blob.name
+                    # Remove the prefix from the name so that range calculations remain prefix-agnostic.
+                    # This is necessary due to the unbounded end-range when splitting string namespaces
+                    # of unknown size.
+                    self.start_range = remove_prefix(blob.name, self.prefix)
                     if i == self.max_results:
                         # Only allow work stealing when paging.
                         has_results = True
@@ -237,7 +258,7 @@ def run_list_worker(
     end_range: str,
     client: storage.Client = None,
     skip_compose: bool = True,
-    prefix: str = None,
+    prefix: str = "",
     allowed_storage_classes: list[str] = DEFAULT_ALLOWED_CLASS,
 ) -> None:
     """Helper function to execute a ListWorker.
@@ -253,7 +274,7 @@ def run_list_worker(
       unidle_queue: Multiprocessing queue pushed to when the worker has successfully stolen work.
       results_queue: Multiprocessing queue on which the worker pushes its listing results onto.
       metadata_queue: Multiprocessing queue on which the worker pushes tracking metadata.
-      start_range: Stirng start range worker will begin listing from.
+      start_range: String start range worker will begin listing from.
       end_range: String end range worker will list until.
       client: The GCS storage client. When not provided, will be derived from background auth.
       skip_compose: When true, skip listing files with the composed object prefix.
@@ -303,7 +324,7 @@ class ListingController(object):
         bucket: str,
         sort_results: bool = False,
         skip_compose: bool = True,
-        prefix: str = None,
+        prefix: str = "",
         allowed_storage_classes: list[str] = DEFAULT_ALLOWED_CLASS,
     ):
         # The maximum number of threads utilized in the fast list operation.
