@@ -35,7 +35,7 @@ function install_requirements() {
 
 function run_hourly_tests() {
     echo Running performance tests.
-    python3 -m pytest dataflux_core/performance_tests/list_and_download.py
+    python3 -m pytest dataflux_core/performance_tests/list_and_download.py -vv --junit-xml="${KOKORO_ARTIFACTS_DIR}/unit_tests/sponge_log.xml" --log-cli-level=DEBUG
 }
 
 install_requirements
