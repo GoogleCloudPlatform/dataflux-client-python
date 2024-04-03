@@ -35,7 +35,7 @@ function install_requirements() {
 
 function run_hourly_tests() {
     echo Running performance tests.
-    python3 dataflux_core/performance_tests/list_only.py --project=$PROJECT --bucket=$BUCKET --bucket-file-count=500000 --num-workers=32 --prefix=$PREFIX
+    python3 -m pytest dataflux_core/performance_tests/list_and_download.py
 }
 
 install_requirements
