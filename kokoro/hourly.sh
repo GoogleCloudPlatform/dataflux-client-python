@@ -28,6 +28,9 @@ function install_requirements() {
 
     echo Installing required dependencies.
     pip install -r requirements.txt
+    
+    echo Installing dataflux core.
+    pip install .
 }
 
 function run_hourly_tests() {
