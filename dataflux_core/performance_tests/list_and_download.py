@@ -55,7 +55,7 @@ class ClientPerformanceTest(unittest.TestCase):
             raise AssertionError(
                 f"Expected {expected_file_count} files, but got {len(list_result)}"
             )
-        if list_timeout and listing_time < list_timeout:
+        if list_timeout and listing_time > list_timeout:
             raise AssertionError(
                 f"Expected list operation to complete in under {list_timeout} seconds, but took {listing_time} seconds."
             )
