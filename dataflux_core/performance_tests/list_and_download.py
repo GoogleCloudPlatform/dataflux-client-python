@@ -125,6 +125,8 @@ class ClientPerformanceTest(unittest.TestCase):
         self.run_download(config, list_result)
 
     def test_list_and_download_segmented(self):
+        # This function is needed to avoid OOM errors when the dataset size
+        # exceeds the memory of the VM.
         config = self.get_config()
         list_result = self.run_list(config)
         num_segments = config["expected_total_size"] / FIFTY_GB
