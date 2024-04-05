@@ -35,7 +35,7 @@ function install_requirements() {
 
 function run_presubmit_tests() {
     echo Running unit tests.
-    python -m pytest dataflux_core/tests -vv --junit-xml="${KOKORO_ARTIFACTS_DIR}/unit_tests/sponge_log.xml" --log-cli-level=DEBUG
+    python3 -m pytest dataflux_core/tests -vv --junit-xml="${KOKORO_ARTIFACTS_DIR}/unit_tests/sponge_log.xml" --log-cli-level=DEBUG
     echo Running performance tests.
     # -k one_shot triggers a full list and download, loading all files into memory in one shot.
     # Alternatively, the segmented test allows us to divide the download into multiple passes
