@@ -35,6 +35,9 @@ function install_requirements() {
 
 function run_hourly_tests() {
     echo Running performance tests.
+    # -k one_shot triggers a full list and download, loading all files into memory in one shot.
+    # Alternatively, the segmented test allows us to divide the download into multiple passes
+    # to avoid OOM errors.
     python3 -m pytest dataflux_core/performance_tests/list_and_download.py -k one_shot -vv --junit-xml="${KOKORO_ARTIFACTS_DIR}/unit_tests/sponge_log.xml" --log-cli-level=DEBUG
 }
 
