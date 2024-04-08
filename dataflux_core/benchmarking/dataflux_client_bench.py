@@ -49,6 +49,8 @@ def main() -> None:
     print(
         f"{len(list_result)} objects listed in {list_end_time - list_start_time} seconds"
     )
+    size = sum([x[1] for x in list_result])
+    print(f"Starting download of: {size} bytes of data...")
     download_params = download.DataFluxDownloadOptimizationParams(
         args.max_compose_bytes
     )
