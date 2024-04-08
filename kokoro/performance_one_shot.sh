@@ -33,7 +33,7 @@ function install_requirements() {
     pip install .
 }
 
-function run_hourly_tests() {
+function run_one_shot_tests() {
     echo Running performance tests.
     # -k one_shot triggers a full list and download, loading all files into memory in one shot.
     # Alternatively, the segmented test allows us to divide the download into multiple passes
@@ -42,4 +42,4 @@ function run_hourly_tests() {
 }
 
 install_requirements
-run_hourly_tests
+run_one_shot_tests
