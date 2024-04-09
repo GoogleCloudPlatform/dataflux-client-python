@@ -83,7 +83,7 @@ class ClientPerformanceTest(unittest.TestCase):
             )
         return list_result
 
-    def run_download(self, config, list_result):
+    def run_download(self, config, list_result, segmented=False):
         download_params = download.DataFluxDownloadOptimizationParams(
             config["max_compose_bytes"]
         )
@@ -108,7 +108,8 @@ class ClientPerformanceTest(unittest.TestCase):
         downloading_time = download_end_time - download_start_time
         total_size = sum([len(x) for x in download_result])
         if (
-            config["expected_total_size"]
+            not segmented
+            and config["expected_total_size"]
             and total_size != config["expected_total_size"]
         ):
             raise AssertionError(
@@ -118,6 +119,7 @@ class ClientPerformanceTest(unittest.TestCase):
             raise AssertionError(
                 f"Expected download operation to complete in under {config['download_timeout']} seconds, but took {downloading_time} seconds."
             )
+        return total_size
 
     def test_list_and_download_one_shot(self):
         config = self.get_config()
@@ -135,5 +137,13 @@ class ClientPerformanceTest(unittest.TestCase):
             list_result[i : i + segment_size]
             for i in range(0, len(list_result), segment_size)
         ]
+        total_size = 0
         for seg in segments:
-            self.run_download(config, seg)
+            total_size += self.run_download(config, seg, segmented=True)
+        if (
+            config["expected_total_size"]
+            and total_size != config["expected_total_size"]
+        ):
+            raise AssertionError(
+                f"Expected {config['expected_total_size']} bytes but got {total_size} bytes"
+            )
