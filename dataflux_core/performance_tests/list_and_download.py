@@ -136,4 +136,4 @@ class ClientPerformanceTest(unittest.TestCase):
             for i in range(0, len(list_result), segment_size)
         ]
         for seg in segments:
-            self.run_download(config, list_result)
+            self.run_download(config, seg)
