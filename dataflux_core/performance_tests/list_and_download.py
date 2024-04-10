@@ -83,7 +83,10 @@ class ClientPerformanceTest(unittest.TestCase):
             )
         return list_result
 
-    def run_download(self, config, list_result, segmented=False):
+    def run_download(self, config, list_result):
+        segmented = False
+        if config["expected_total_size"] > FIFTY_GB:
+            segmented = True
         download_params = download.DataFluxDownloadOptimizationParams(
             config["max_compose_bytes"]
         )
@@ -139,7 +142,7 @@ class ClientPerformanceTest(unittest.TestCase):
         ]
         total_size = 0
         for seg in segments:
-            total_size += self.run_download(config, seg, segmented=True)
+            total_size += self.run_download(config, seg)
         if (
             config["expected_total_size"]
             and total_size != config["expected_total_size"]
