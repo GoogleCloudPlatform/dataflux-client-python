@@ -12,9 +12,6 @@
  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  See the License for the specific language governing permissions and
  limitations under the License.
-
- Example benchmark execution:
- python3 dataflux_client_threaded_bench.py --project=test-project --bucket=test-bucket --bucket-file-count=5 --bucket-file-size=172635220 --num-workers=5 --threads=30 --max-compose=32
  """
 
 import argparse
@@ -30,7 +27,6 @@ def parse_args():
     parser.add_argument("--bucket-file-size", type=int, default=None)
     parser.add_argument("--num-workers", type=int, default=10)
     parser.add_argument("--max-compose-bytes", type=int, default=100000000)
-    parser.add_argument("--threads", type=int, default=20)
     parser.add_argument("--prefix", type=str, default="")
     return parser.parse_args()
 
@@ -49,29 +45,6 @@ def main() -> None:
         )
     print(
         f"{len(list_result)} objects listed in {list_end_time - list_start_time} seconds"
-    )
-    size = sum([x[1] for x in list_result])
-    print(f"Starting download of: {size} bytes of data...")
-    download_params = download.DataFluxDownloadOptimizationParams(
-        args.max_compose_bytes
-    )
-    download_start_time = time.time()
-    print(f"Download operation started at {download_start_time}")
-    download_result = download.dataflux_download_threaded(
-        args.project,
-        args.bucket,
-        list_result,
-        dataflux_download_optimization_params=download_params,
-        threads=args.threads,
-    )
-    download_end_time = time.time()
-    total_size = sum([len(x) for x in download_result])
-    if args.bucket_file_size and total_size != args.bucket_file_size:
-        raise AssertionError(
-            f"Expected {args.bucket_file_size} bytes but got {total_size} bytes"
-        )
-    print(
-        f"{total_size} bytes across {len(list_result)} objects downloaded in {download_end_time - download_start_time} seconds using {args.threads} threads"
     )
 
 
