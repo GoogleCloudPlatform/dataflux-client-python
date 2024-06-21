@@ -16,6 +16,7 @@
 
 from dataflux_core.tests import fake_gcs
 import unittest
+import io
 
 
 class FakeGCSTest(unittest.TestCase):
@@ -113,6 +114,25 @@ class FakeGCSTest(unittest.TestCase):
         except:
             return
         self.fail("Creating bucket with None name did not raise error")
+
+    def test_blob_write(self):
+        want_obj = "test"
+        obj_bytes = str.encode(want_obj)
+        bucket = fake_gcs.Bucket("test-bucket")
+        blob = bucket.blob(want_obj)
+        writer = fake_gcs.FakeBlobWriter(blob)
+        writer.write(obj_bytes)
+        self.assertEqual(blob.content, b''+obj_bytes)
+
+    def test_blob_read(self):
+        bucket = fake_gcs.Bucket("test-bucket")
+        blob = bucket.blob("test")
+        self.assertIsInstance(blob.open("rb"), io.BytesIO)
+
+    def test_blob_writer(self):
+        bucket = fake_gcs.Bucket("test-bucket")
+        blob = bucket.blob("test")
+        self.assertIsInstance(blob.open("wb"), fake_gcs.FakeBlobWriter)
 
 
 if __name__ == "__main__":
