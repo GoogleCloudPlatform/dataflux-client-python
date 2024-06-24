@@ -28,12 +28,18 @@ function install_requirements() {
 
     echo Installing required dependencies.
     pip install -r requirements.txt
+    
+    echo Installing dataflux core.
+    pip install .
 }
 
-function run_unit_tests() {
-    echo Running unit tests.
-    python -m pytest dataflux_core/tests -vvv --junit-xml="${KOKORO_ARTIFACTS_DIR}/unit_tests/sponge_log.xml" --log-cli-level=DEBUG
+function run_one_shot_tests() {
+    echo Running performance tests.
+    # -k one_shot triggers a full list and download, loading all files into memory in one shot.
+    # Alternatively, the segmented test allows us to divide the download into multiple passes
+    # to avoid OOM errors.
+    python3 -m pytest dataflux_core/performance_tests/list_and_download.py -k one_shot -vv --junit-xml="${KOKORO_ARTIFACTS_DIR}/unit_tests/sponge_log.xml" --log-cli-level=DEBUG
 }
 
 install_requirements
-run_unit_tests
+run_one_shot_tests

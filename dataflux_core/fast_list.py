@@ -188,7 +188,6 @@ class ListWorker(object):
                     list_blob_args["prefix"] = self.prefix
                 blobs = self.client.bucket(self.bucket).list_blobs(**list_blob_args)
                 self.api_call_count += 1
-                retries_remaining = self.max_retries
                 i = 0
                 self.heartbeat_queue.put(self.name)
                 for blob in blobs:
@@ -210,6 +209,7 @@ class ListWorker(object):
                         # Only allow work stealing when paging.
                         has_results = True
                         break
+                retries_remaining = self.max_retries
             except Exception as e:
                 retries_remaining -= 1
                 logging.error(
@@ -466,7 +466,7 @@ class ListingController(object):
         """
         for p in processes:
             p.terminate()
-        raise RuntimeError("multiprocessing child process became unresponsive")
+        raise RuntimeError("multiprocessing child process became unresponsive; check logs for underlying error")
 
     def run(self) -> list[tuple[str, int]]:
         """Runs the controller that manages fast listing.

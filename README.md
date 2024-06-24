@@ -30,6 +30,10 @@ list_result = fast_list.ListingController(
 
 By default, fast list will only list objects of STANDARD class in GCS buckets. This can be overridden by passing in a string list of storage classes to include while running the Listing Controller. Note that this default behavior was chosen to avoid the cost associated with downloading non-standard GCS classes. Details on GCS Storage Classes can be further explored in the [Storage Class Documentation](https://cloud.google.com/storage/docs/storage-classes).
 
+#### API Call Count
+
+Using fast list increases the total number of calls made to the GCS bucket. The increased amount can vary greatly based on size of the workload and number of threads, but our benchmarking has shown an uper bound of approximately 2x the number of API calls when compared to a sequential list. API call count tracking will be displayed in logs if log level is set to debug. To enable these logs we recommend using the `--log-cli-level=DEBUG` flag.
+
 ### Fast List Benchmark Results
 |File Count|VM Core Count|List Time Without Dataflux|List Time With Dataflux|
 |------------|-------------|--------------------------|-----------------------|
