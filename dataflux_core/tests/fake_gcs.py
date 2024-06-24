@@ -22,7 +22,7 @@ server, which could be a future improvement.
 """
 
 from __future__ import annotations
-
+import io
 
 class Bucket(object):
     """Bucket represents a bucket in GCS, containing objects."""
@@ -61,6 +61,14 @@ class Bucket(object):
             filename, content, self, storage_class=storage_class
         )
 
+class FakeBlobWriter(object):
+    """Represents fake BlobWriter."""
+    def __init__(self, blob):
+        self.blob = blob
+    def write(self, data:bytes):
+        self.blob.content += data
+    def flush(self):
+        pass
 
 class Blob(object):
     """Blob represents a GCS blob object.
@@ -102,24 +110,13 @@ class Blob(object):
 
     def open(self, mode: str, ignore_flush: bool = False):
         if mode == "rb":
-            return BlobReader()
+            return io.BytesIO(self.content)
         elif mode == "wb":
-            return BlobWriter()
-
-        return None
-
-
-class BlobReader(object):
-    """BlobReader represents a fake google.cloud.storage.fileio.BlobReader"""
-
-    pass
-
-
-class BlobWriter(object):
-    """BlobWriter represents a fake google.cloud.storage.fileio.BlobWriter"""
-
-    pass
-
+            self.content = b''
+            return FakeBlobWriter(self)
+        raise NotImplementedError(
+            "Supported modes strings are 'rb' and 'wb' only."
+        )
 
 class Client(object):
     """Client represents a GCS client which can provide bucket handles."""
