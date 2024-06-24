@@ -114,7 +114,9 @@ class Blob(object):
         elif mode == "wb":
             self.content = b''
             return FakeBlobWriter(self)
-        return None
+        raise NotImplementedError(
+            "Supported modes strings are 'rb' and 'wb' only."
+        )
 
 class Client(object):
     """Client represents a GCS client which can provide bucket handles."""
