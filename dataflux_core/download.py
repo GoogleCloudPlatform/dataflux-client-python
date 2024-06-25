@@ -33,8 +33,9 @@ import signal
 import sys
 
 # https://cloud.google.com/storage/docs/retry-strategy#python.
-MODIFIED_RETRY = DEFAULT_RETRY.with_deadline(300.0).with_delay(
-    initial=1.0, multiplier=1.2, maximum=45.0
+# 15 minute deadline with maximum delay of 2.5 minutes.
+MODIFIED_RETRY = DEFAULT_RETRY.with_deadline(900.0).with_delay(
+    initial=1.0, multiplier=1.2, maximum=150.0
 )
 
 # https://cloud.google.com/storage/docs/composite-objects.
