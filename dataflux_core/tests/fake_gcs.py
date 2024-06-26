@@ -69,6 +69,10 @@ class FakeBlobWriter(object):
         self.blob.content += data
     def flush(self):
         pass
+    def __enter__(self):
+        pass
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        pass
 
 class Blob(object):
     """Blob represents a GCS blob object.
