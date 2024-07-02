@@ -51,6 +51,7 @@ def compose(
     destination_blob_name: str,
     objects: list[tuple[str, int]],
     storage_client: object = None,
+    retry_config: "google.api_core.retry.retry_unary.Retry" = MODIFIED_RETRY,
 ) -> object:
     """Compose the objects into a composite object, upload the composite object to the GCS bucket and returns it.
 
@@ -63,6 +64,7 @@ def compose(
             Example: [("object_name_A", 1000), ("object_name_B", 2000)]
         storage_client: the google.cloud.storage.Client initialized with the project.
             If not defined, the function will initialize the client with the project_name.
+        retry_config: The retry parameter to supply to the compose objects call.
 
     Returns:
         the "blob" of the composed object.
@@ -86,7 +88,7 @@ def compose(
         blob_name = each_object[0]
         sources.append(bucket.blob(blob_name))
 
-    destination.compose(sources, retry=MODIFIED_RETRY)
+    destination.compose(sources, retry=retry_config)
 
     return destination
 
@@ -141,7 +143,10 @@ def decompose(
 
 
 def download_single(
-    storage_client: object, bucket_name: str, object_name: str
+    storage_client: object,
+    bucket_name: str,
+    object_name: str,
+    retry_config: "google.api_core.retry.retry_unary.Retry" = MODIFIED_RETRY,
 ) -> bytes:
     """Download the contents of this object as a bytes object and return it.
 
@@ -149,13 +154,14 @@ def download_single(
         storage_client: the google.cloud.storage.Client initialized with the project.
         bucket_name: the name of the GCS bucket that holds the object.
         object_name: the name of the object to download.
+        retry_config: The retry parameter supplied to the download_as_bytes call.
 
     Returns:
         the contents of the object in bytes.
     """
     bucket_handle = storage_client.bucket(bucket_name)
     blob = bucket_handle.blob(object_name)
-    return blob.download_as_bytes(retry=MODIFIED_RETRY)
+    return blob.download_as_bytes(retry=retry_config)
 
 
 class DataFluxDownloadOptimizationParams:
@@ -310,6 +316,9 @@ def dataflux_download(
     storage_client: object = None,
     dataflux_download_optimization_params: DataFluxDownloadOptimizationParams = None,
     threading_enabled=False,
+    retry_factor: float = 1.2,
+    retry_max: float = 60,
+    retry_deadline: float = 300,
 ) -> list[bytes]:
     """Perform the DataFlux download algorithm to download the object contents as bytes and return.
 
@@ -322,9 +331,15 @@ def dataflux_download(
         storage_client: the google.cloud.storage.Client initialized with the project.
             If not defined, the function will initialize the client with the project_name.
         dataflux_download_optimization_params: the paramemters used to optimize the download performance.
+        retry_factor: The multiplicative increase in retry wait time per retry.
+        retry_max: The maximum wait time between download, compose, or delete call retry.
+        retry_deadline: The deadline for ending a retry effort.
     Returns:
         the contents of the object in bytes.
     """
+    retry_config = DEFAULT_RETRY.with_deadline(retry_deadline).with_delay(
+        initial=1.0, multiplier=retry_factor, maximum=retry_max
+    )
     if storage_client is None:
         storage_client = storage.Client(
             project=project_name,
@@ -399,7 +414,7 @@ def dataflux_download(
                 )
 
                 try:
-                    composed_object.delete(retry=MODIFIED_RETRY)
+                    composed_object.delete(retry=retry_config)
                     current_composed_object = None
                 except Exception as e:
                     logging.exception(
@@ -415,6 +430,9 @@ def dataflux_download_lazy(
     storage_client: object = None,
     dataflux_download_optimization_params: DataFluxDownloadOptimizationParams = None,
     threading_enabled=False,
+    retry_factor: float = 1.2,
+    retry_max: float = 60,
+    retry_deadline: float = 300,
 ) -> Iterator[bytes]:
     """Perform the DataFlux download algorithm to download the object contents as bytes in a lazy fashion.
 
@@ -427,9 +445,15 @@ def dataflux_download_lazy(
         storage_client: the google.cloud.storage.Client initialized with the project.
             If not defined, the function will initialize the client with the project_name.
         dataflux_download_optimization_params: the paramemters used to optimize the download performance.
+        retry_factor: The multiplicative increase in retry wait time for each retry.
+        retry_max: The maximum wait time per download, compose, or delete call retry.
+        retry_deadline: The deadline for ending a download retry effort.
     Returns:
         An iterator of the contents of the object in bytes.
     """
+    retry_config = DEFAULT_RETRY.with_deadline(retry_deadline).with_delay(
+        initial=1.0, multiplier=retry_factor, maximum=retry_max
+    )
     if storage_client is None:
         storage_client = storage.Client(
             project=project_name,
@@ -503,7 +527,7 @@ def dataflux_download_lazy(
                 )
 
                 try:
-                    composed_object.delete(retry=MODIFIED_RETRY)
+                    composed_object.delete(retry=retry_config)
                     current_composed_object = None
                 except Exception as e:
                     logging.exception(
