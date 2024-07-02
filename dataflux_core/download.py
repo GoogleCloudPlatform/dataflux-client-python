@@ -316,9 +316,7 @@ def dataflux_download(
     storage_client: object = None,
     dataflux_download_optimization_params: DataFluxDownloadOptimizationParams = None,
     threading_enabled=False,
-    retry_factor: float = 1.2,
-    retry_max: float = 60,
-    retry_deadline: float = 300,
+    retry_config=MODIFIED_RETRY,
 ) -> list[bytes]:
     """Perform the DataFlux download algorithm to download the object contents as bytes and return.
 
@@ -331,15 +329,10 @@ def dataflux_download(
         storage_client: the google.cloud.storage.Client initialized with the project.
             If not defined, the function will initialize the client with the project_name.
         dataflux_download_optimization_params: the paramemters used to optimize the download performance.
-        retry_factor: The multiplicative increase in retry wait time per retry.
-        retry_max: The maximum wait time between download, compose, or delete call retry.
-        retry_deadline: The deadline for ending a retry effort.
+        retry_config: The retry configuration to pass to all retryable download operations
     Returns:
         the contents of the object in bytes.
     """
-    retry_config = DEFAULT_RETRY.with_deadline(retry_deadline).with_delay(
-        initial=1.0, multiplier=retry_factor, maximum=retry_max
-    )
     if storage_client is None:
         storage_client = storage.Client(
             project=project_name,
@@ -430,9 +423,7 @@ def dataflux_download_lazy(
     storage_client: object = None,
     dataflux_download_optimization_params: DataFluxDownloadOptimizationParams = None,
     threading_enabled=False,
-    retry_factor: float = 1.2,
-    retry_max: float = 60,
-    retry_deadline: float = 300,
+    retry_config: "google.api_core.retry.retry_unary.Retry" = MODIFIED_RETRY,
 ) -> Iterator[bytes]:
     """Perform the DataFlux download algorithm to download the object contents as bytes in a lazy fashion.
 
@@ -445,15 +436,10 @@ def dataflux_download_lazy(
         storage_client: the google.cloud.storage.Client initialized with the project.
             If not defined, the function will initialize the client with the project_name.
         dataflux_download_optimization_params: the paramemters used to optimize the download performance.
-        retry_factor: The multiplicative increase in retry wait time for each retry.
-        retry_max: The maximum wait time per download, compose, or delete call retry.
-        retry_deadline: The deadline for ending a download retry effort.
+        retry_config: The retry parameter to supply to the compose objects call.
     Returns:
         An iterator of the contents of the object in bytes.
     """
-    retry_config = DEFAULT_RETRY.with_deadline(retry_deadline).with_delay(
-        initial=1.0, multiplier=retry_factor, maximum=retry_max
-    )
     if storage_client is None:
         storage_client = storage.Client(
             project=project_name,

@@ -326,9 +326,7 @@ class ListingController(object):
         skip_compose: When true, skip listing files with the composed object prefix.
         prefix: When provided, only list objects under this prefix.
         allowed_storage_classes: The set of GCS Storage Class types fast list will include.
-        retry_factor: The multiplicative increase in retry wait time for each retry.
-        retry_max: The maximum wait time per list call retry.
-        retry_deadline: The deadline for ending a list retry effort.
+        retry_config: The retry config passed to list_blobs.
     """
 
     def __init__(
@@ -340,9 +338,7 @@ class ListingController(object):
         skip_compose: bool = True,
         prefix: str = "",
         allowed_storage_classes: list[str] = DEFAULT_ALLOWED_CLASS,
-        retry_factor: float = 1.2,
-        retry_max: float = 60,
-        retry_deadline: float = 300,
+        retry_config=MODIFIED_RETRY,
     ):
         # The maximum number of threads utilized in the fast list operation.
         self.max_parallelism = max_parallelism
@@ -356,9 +352,7 @@ class ListingController(object):
         self.skip_compose = skip_compose
         self.prefix = prefix
         self.allowed_storage_classes = allowed_storage_classes
-        self.retry_config = DEFAULT_RETRY.with_deadline(retry_deadline).with_delay(
-            initial=1.0, multiplier=retry_factor, maximum=retry_max
-        )
+        self.retry_config = retry_config
 
     def manage_tracking_queues(
         self,
