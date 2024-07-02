@@ -24,9 +24,13 @@ import logging
 import time
 
 from google.cloud import storage
+from google.cloud.storage.retry import DEFAULT_RETRY
 from google.api_core.client_info import ClientInfo
 
 DEFAULT_ALLOWED_CLASS = ["STANDARD"]
+MODIFIED_RETRY = DEFAULT_RETRY.with_deadline(300.0).with_delay(
+    initial=1.0, multiplier=1.2, maximum=45.0
+)
 
 
 def remove_prefix(text: str, prefix: str):
@@ -61,6 +65,7 @@ class ListWorker(object):
         metadata_queue: Multiprocessing queue on which the worker pushes tracking metadata.
         start_range: Stirng start range worker will begin listing from.
         end_range: String end range worker will list until.
+        retry_config: The retry parameter to supply to list_blob.
 
         results: Set storing aggregate results prior to pushing onto results_queue.
         client: The GCS client through which all GCS list operations are executed.
@@ -88,6 +93,7 @@ class ListWorker(object):
         metadata_queue: "multiprocessing.Queue[tuple[str, int]]",
         start_range: str,
         end_range: str,
+        retry_config: "google.api_core.retry.retry_unary.Retry" = MODIFIED_RETRY,
         client: storage.Client = None,
         skip_compose: bool = True,
         list_directory_objects: bool = False,
@@ -118,6 +124,7 @@ class ListWorker(object):
         self.allowed_storage_classes = allowed_storage_classes
         self.api_call_count = 0
         self.max_retries = max_retries
+        self.retry_config = retry_config
 
     def wait_for_work(self) -> bool:
         """Indefinitely waits for available work and consumes it once available.
@@ -183,6 +190,7 @@ class ListWorker(object):
                     "end_offset": (
                         "" if not self.end_range else self.prefix + self.end_range
                     ),
+                    "retry": self.retry_config,
                 }
                 if self.prefix:
                     list_blob_args["prefix"] = self.prefix
@@ -256,6 +264,7 @@ def run_list_worker(
     metadata_queue: "multiprocessing.Queue[tuple[str, int]]",
     start_range: str,
     end_range: str,
+    retry_config: "google.api_core.retry.retry_unary.Retry" = MODIFIED_RETRY,
     client: storage.Client = None,
     skip_compose: bool = True,
     prefix: str = "",
@@ -276,6 +285,7 @@ def run_list_worker(
       metadata_queue: Multiprocessing queue on which the worker pushes tracking metadata.
       start_range: String start range worker will begin listing from.
       end_range: String end range worker will list until.
+      retry_config: The retry parameter to supply to list_blob.
       client: The GCS storage client. When not provided, will be derived from background auth.
       skip_compose: When true, skip listing files with the composed object prefix.
       prefix: When provided, only list objects under this prefix.
@@ -294,6 +304,7 @@ def run_list_worker(
         metadata_queue,
         start_range,
         end_range,
+        retry_config,
         client,
         skip_compose=skip_compose,
         prefix=prefix,
@@ -315,6 +326,7 @@ class ListingController(object):
         skip_compose: When true, skip listing files with the composed object prefix.
         prefix: When provided, only list objects under this prefix.
         allowed_storage_classes: The set of GCS Storage Class types fast list will include.
+        retry_config: The retry config passed to list_blobs.
     """
 
     def __init__(
@@ -326,6 +338,7 @@ class ListingController(object):
         skip_compose: bool = True,
         prefix: str = "",
         allowed_storage_classes: list[str] = DEFAULT_ALLOWED_CLASS,
+        retry_config=MODIFIED_RETRY,
     ):
         # The maximum number of threads utilized in the fast list operation.
         self.max_parallelism = max_parallelism
@@ -339,6 +352,7 @@ class ListingController(object):
         self.skip_compose = skip_compose
         self.prefix = prefix
         self.allowed_storage_classes = allowed_storage_classes
+        self.retry_config = retry_config
 
     def manage_tracking_queues(
         self,
@@ -466,7 +480,9 @@ class ListingController(object):
         """
         for p in processes:
             p.terminate()
-        raise RuntimeError("multiprocessing child process became unresponsive; check logs for underlying error")
+        raise RuntimeError(
+            "multiprocessing child process became unresponsive; check logs for underlying error"
+        )
 
     def run(self) -> list[tuple[str, int]]:
         """Runs the controller that manages fast listing.
@@ -507,6 +523,7 @@ class ListingController(object):
                     metadata_queue,
                     "" if i == 0 else None,
                     "" if i == 0 else None,
+                    self.retry_config,
                     self.client,
                     self.skip_compose,
                     self.prefix,
