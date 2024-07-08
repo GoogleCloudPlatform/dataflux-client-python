@@ -70,7 +70,7 @@ class FakeBlobWriter(object):
     def flush(self):
         pass
     def __enter__(self):
-        pass
+        return self
     def __exit__(self, exc_type, exc_val, exc_tb):
         pass
 
