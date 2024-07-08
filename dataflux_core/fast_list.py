@@ -45,7 +45,7 @@ def remove_prefix(text: str, prefix: str):
     """
     # Note that as of python 3.9 removeprefix is built into string.
     if text.startswith(prefix):
-        return text[len(prefix) :]
+        return text[len(prefix):]
     return text
 
 
@@ -91,6 +91,7 @@ class ListWorker(object):
         unidle_queue: "multiprocessing.Queue[str]",
         results_queue: "multiprocessing.Queue[set[tuple[str, int]]]",
         metadata_queue: "multiprocessing.Queue[tuple[str, int]]",
+        error_queue: "multiprocessing.Queue[Exception]",
         start_range: str,
         end_range: str,
         retry_config: "google.api_core.retry.retry_unary.Retry" = MODIFIED_RETRY,
@@ -111,6 +112,7 @@ class ListWorker(object):
         self.unidle_queue = unidle_queue
         self.results_queue = results_queue
         self.metadata_queue = metadata_queue
+        self.error_queue = error_queue
         self.start_range = start_range
         self.end_range = end_range
         self.results: set[tuple[str, int]] = set()
@@ -194,7 +196,8 @@ class ListWorker(object):
                 }
                 if self.prefix:
                     list_blob_args["prefix"] = self.prefix
-                blobs = self.client.bucket(self.bucket).list_blobs(**list_blob_args)
+                blobs = self.client.bucket(
+                    self.bucket).list_blobs(**list_blob_args)
                 self.api_call_count += 1
                 i = 0
                 self.heartbeat_queue.put(self.name)
@@ -227,6 +230,7 @@ class ListWorker(object):
                     logging.error(
                         "process " + self.name + " is out of retries; exiting"
                     )
+                    self.error_queue.put(e)
                     return
                 continue
             if has_results:
@@ -262,6 +266,7 @@ def run_list_worker(
     unidle_queue: "multiprocessing.Queue[str]",
     results_queue: "multiprocessing.Queue[set[tuple[str, int]]]",
     metadata_queue: "multiprocessing.Queue[tuple[str, int]]",
+    error_queue: "multiprocessing.Queue[Exception]",
     start_range: str,
     end_range: str,
     retry_config: "google.api_core.retry.retry_unary.Retry" = MODIFIED_RETRY,
@@ -283,6 +288,7 @@ def run_list_worker(
       unidle_queue: Multiprocessing queue pushed to when the worker has successfully stolen work.
       results_queue: Multiprocessing queue on which the worker pushes its listing results onto.
       metadata_queue: Multiprocessing queue on which the worker pushes tracking metadata.
+      error_queue: Multiprocessing queue to track errors from the worker process.
       start_range: String start range worker will begin listing from.
       end_range: String end range worker will list until.
       retry_config: The retry parameter to supply to list_blob.
@@ -302,6 +308,7 @@ def run_list_worker(
         unidle_queue,
         results_queue,
         metadata_queue,
+        error_queue,
         start_range,
         end_range,
         retry_config,
@@ -404,7 +411,8 @@ class ListingController(object):
                 crashed.append(inited_worker)
             for proc in crashed:
                 if proc in self.inited:
-                    logging.error("process crash detected, ending list procedure...")
+                    logging.error(
+                        "process crash detected, ending list procedure...")
                     return True
         return False
 
@@ -504,7 +512,9 @@ class ListingController(object):
         results_queue: multiprocessing.Queue[set[tuple[str, int]]] = (
             multiprocessing.Queue()
         )
-        metadata_queue: multiprocessing.Queue[tuple[str, int]] = multiprocessing.Queue()
+        metadata_queue: multiprocessing.Queue[tuple[str, int]] = multiprocessing.Queue(
+        )
+        error_queue: multiprocessing.Queue[Exception] = multiprocessing.Queue()
         processes = []
         results: set[tuple[str, int]] = set()
         for i in range(self.max_parallelism):
@@ -521,6 +531,7 @@ class ListingController(object):
                     unidle_queue,
                     results_queue,
                     metadata_queue,
+                    error_queue,
                     "" if i == 0 else None,
                     "" if i == 0 else None,
                     self.retry_config,
@@ -537,6 +548,13 @@ class ListingController(object):
             time.sleep(0.1)
         while True:
             time.sleep(0.2)
+            try:
+                e = error_queue.get_nowait()
+                logging.error(
+                    f"Got error from child process; exiting. Check child process logs for more details. Error: {e}")
+                return self.terminate_now(processes)
+            except queue.Empty:
+                pass
             alive = False
             for p in processes:
                 if p.is_alive():
@@ -555,7 +573,8 @@ class ListingController(object):
             if not alive:
                 break
             # Update all queues related to tracking process status.
-            self.manage_tracking_queues(idle_queue, unidle_queue, heartbeat_queue)
+            self.manage_tracking_queues(
+                idle_queue, unidle_queue, heartbeat_queue)
             if self.check_crashed_processes():
                 return self.terminate_now(processes)
             logging.debug("Inited procs: %d", len(self.inited))

@@ -147,6 +147,7 @@ class FastListTest(unittest.TestCase):
                 queue.Queue(),
                 results_queue,
                 metadata_queue,
+                queue.Queue(),
                 "",
                 "",
                 skip_compose=tc["skip_compose"],
@@ -276,6 +277,17 @@ class FastListTest(unittest.TestCase):
             self.fail(
                 f"got {got_total_size} results, want {object_count * object_size}"
             )
+    
+    def test_list_controller_e2e_error(self):
+        """Full end to end test of the fast list operation with one worker which exits with an error."""
+        client = fake_gcs.Client()
+        controller = fast_list.ListingController(1, "", "", True)
+        controller.client = client
+        try:
+            results = controller.run()
+        except:
+            return
+        self.fail("Expected controller to raise an error when child process raises an error but it did not")
 
     def test_wait_for_work_success(self):
         """Tests waiting for work when there is still work remaining."""
@@ -302,6 +314,7 @@ class FastListTest(unittest.TestCase):
             unidle_queue,
             results_queue,
             metadata_queue,
+            queue.Queue(),
             "",
             "",
         )
@@ -341,6 +354,7 @@ class FastListTest(unittest.TestCase):
             unidle_queue,
             results_queue,
             metadata_queue,
+            queue.Queue(),
             "",
             "",
         )
@@ -373,6 +387,7 @@ class FastListTest(unittest.TestCase):
             queue.Queue(),
             results_queue,
             metadata_queue,
+            queue.Queue(),
             "",
             "",
         )
