@@ -24,6 +24,7 @@ server, which could be a future improvement.
 from __future__ import annotations
 import io
 
+
 class Bucket(object):
     """Bucket represents a bucket in GCS, containing objects."""
 
@@ -39,6 +40,7 @@ class Bucket(object):
         start_offset: str = "",
         end_offset: str = "",
         prefix: str = "",
+        retry: "google.api_core.retry.retry_unary.Retry" = None,
     ) -> list[Blob]:
         results = []
         for name in sorted(self.blobs):
@@ -61,18 +63,24 @@ class Bucket(object):
             filename, content, self, storage_class=storage_class
         )
 
+
 class FakeBlobWriter(object):
     """Represents fake BlobWriter."""
+
     def __init__(self, blob):
         self.blob = blob
-    def write(self, data:bytes):
+
+    def write(self, data: bytes):
         self.blob.content += data
+
     def flush(self):
         pass
+
     def __enter__(self):
         return self
     def __exit__(self, exc_type, exc_val, exc_tb):
         pass
+
 
 class Blob(object):
     """Blob represents a GCS blob object.
@@ -116,11 +124,10 @@ class Blob(object):
         if mode == "rb":
             return io.BytesIO(self.content)
         elif mode == "wb":
-            self.content = b''
+            self.content = b""
             return FakeBlobWriter(self)
-        raise NotImplementedError(
-            "Supported modes strings are 'rb' and 'wb' only."
-        )
+        raise NotImplementedError("Supported modes strings are 'rb' and 'wb' only.")
+
 
 class Client(object):
     """Client represents a GCS client which can provide bucket handles."""
