@@ -29,4 +29,5 @@ def add_dataflux_user_agent(storage_client: storage.Client):
     elif not storage_client._connection._client_info.user_agent:
         storage_client._connection._client_info.user_agent = user_agent_string
     elif user_agent_string not in storage_client._connection._client_info.user_agent:
-        storage_client._connection._client_info.user_agent += " " + user_agent_string
+        storage_client._connection._client_info.user_agent = user_agent_string + \
+            " " + storage_client._connection._client_info.user_agent

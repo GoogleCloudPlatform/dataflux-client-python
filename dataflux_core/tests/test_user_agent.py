@@ -24,18 +24,21 @@ class UserAgentTest(unittest.TestCase):
     def test_no_existing_info(self):
         client = storage.Client()
         user_agent.add_dataflux_user_agent(client)
-        self.assertIn("dataflux", client._connection._client_info.user_agent)
+        self.assertTrue(
+            client._connection.user_agent.startswith("dataflux"))
 
     def test_no_existing_string(self):
         client = storage.Client(client_info=ClientInfo())
         user_agent.add_dataflux_user_agent(client)
-        self.assertIn("dataflux", client._connection._client_info.user_agent)
+        self.assertTrue(
+            client._connection.user_agent.startswith("dataflux"))
 
     def test_with_existing_string(self):
         existing_user_agent = "existing user agent"
         client = storage.Client(client_info=ClientInfo(
             user_agent=existing_user_agent))
         user_agent.add_dataflux_user_agent(client)
-        self.assertIn("dataflux", client._connection._client_info.user_agent)
+        self.assertTrue(
+            client._connection.user_agent.startswith("dataflux"))
         self.assertIn(existing_user_agent,
                       client._connection._client_info.user_agent)

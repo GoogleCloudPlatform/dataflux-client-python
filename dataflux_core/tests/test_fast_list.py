@@ -129,7 +129,8 @@ class FastListTest(unittest.TestCase):
                     f"dataflux-composed-objects/composed{i}.tar", b"a" * object_size
                 )
             for i in range(tc["prefix_obj_count"]):
-                bucket._add_file(f"{tc['prefix']}file{i}.txt", b"a" * object_size)
+                bucket._add_file(
+                    f"{tc['prefix']}file{i}.txt", b"a" * object_size)
             for i in range(tc["directory_obj_count"]):
                 bucket._add_file(f"{tc['prefix']}/dir{i}/", b"")
             for i in range(tc["archive_obj_count"]):
@@ -165,18 +166,22 @@ class FastListTest(unittest.TestCase):
                     break
             expected_objects = tc["expected_objects"]
             if len(got_results) != expected_objects:
-                self.fail(f"got {len(got_results)} results, want {expected_objects}")
+                self.fail(
+                    f"got {len(got_results)} results, want {expected_objects}")
             got_total_size = 0
             for result in got_results:
                 got_total_size += result[1]
             want_total_size = (
                 expected_objects
-                - (tc["directory_obj_count"] if tc["list_directory_objects"] else 0)
+                - (tc["directory_obj_count"]
+                   if tc["list_directory_objects"] else 0)
             ) * object_size
             if got_total_size != want_total_size:
-                self.fail(f"got {got_total_size} total size, want {want_total_size}")
+                self.fail(
+                    f"got {got_total_size} total size, want {want_total_size}")
             if list_worker.api_call_count != tc["expected_api_calls"]:
                 self.fail(f"{list_worker.api_call_count} on test {tc['desc']}")
+            self.assertIn("dataflux", client._connection.user_agent)
 
     def test_manage_tracking_queues(self):
         """Tests that all tracking queues are pushed to properly."""
@@ -191,7 +196,8 @@ class FastListTest(unittest.TestCase):
         hb_queue.put("four")
         controller.manage_tracking_queues(idle_queue, unidle_queue, hb_queue)
         if controller.waiting_for_work != 2:
-            self.fail(f"got {controller.waiting_for_work} works waiting, want 2")
+            self.fail(
+                f"got {controller.waiting_for_work} works waiting, want 2")
         if "four" not in controller.inited:
             self.fail(
                 "expected inited worker to be tracked, but was not added to inited"
@@ -249,7 +255,8 @@ class FastListTest(unittest.TestCase):
         term_tracker = []
         proc_count = 5
         for i in range(proc_count):
-            procs.append(fake_multiprocess.FakeProcess(f"proc{i}", False, term_tracker))
+            procs.append(fake_multiprocess.FakeProcess(
+                f"proc{i}", False, term_tracker))
 
         with self.assertRaises(RuntimeError):
             controller.terminate_now(procs)
@@ -277,7 +284,7 @@ class FastListTest(unittest.TestCase):
             self.fail(
                 f"got {got_total_size} results, want {object_count * object_size}"
             )
-    
+
     def test_list_controller_e2e_error(self):
         """Full end to end test of the fast list operation with one worker which exits with an error."""
         client = fake_gcs.Client()
@@ -287,7 +294,8 @@ class FastListTest(unittest.TestCase):
             results = controller.run()
         except:
             return
-        self.fail("Expected controller to raise an error when child process raises an error but it did not")
+        self.fail(
+            "Expected controller to raise an error when child process raises an error but it did not")
 
     def test_wait_for_work_success(self):
         """Tests waiting for work when there is still work remaining."""
