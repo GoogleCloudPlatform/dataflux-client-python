@@ -76,12 +76,8 @@ def compose(
         )
 
     if storage_client is None:
-        storage_client = storage.Client(
-            project=project_name,
-            client_info=ClientInfo(user_agent="dataflux/0.0"),
-        )
-    else:
-        user_agent.add_dataflux_user_agent(storage_client)
+        storage_client = storage.Client(project=project_name)
+    user_agent.add_dataflux_user_agent(storage_client)
 
     bucket = storage_client.bucket(bucket_name)
     destination = bucket.blob(destination_blob_name)
@@ -102,6 +98,7 @@ def decompose(
     composite_object_name: str,
     objects: list[tuple[str, int]],
     storage_client: object = None,
+    retry_config: "google.api_core.retry.retry_unary.Retry" = MODIFIED_RETRY,
 ) -> list[bytes]:
     """Decompose the composite objects and return the decomposed objects contents in bytes.
 
@@ -114,27 +111,27 @@ def decompose(
             Example: [("object_name_A", 1000), ("object_name_B", 2000)]
         storage_client: the google.cloud.storage.Client initialized with the project.
             If not defined, the function will initialize the client with the project_name.
+        retry_config: The retry parameter supplied to the download_as_bytes call.
 
     Returns:
         the contents (in bytes) of the decomposed objects.
     """
     if storage_client is None:
-        storage_client = storage.Client(
-            project=project_name,
-            client_info=ClientInfo(user_agent="dataflux/0.0"),
-        )
-    else:
-        user_agent.add_dataflux_user_agent(storage_client)
+        storage_client = storage.Client(project=project_name)
+    user_agent.add_dataflux_user_agent(storage_client)
 
     res = []
     composed_object_content = download_single(
-        storage_client, bucket_name, composite_object_name
+        storage_client,
+        bucket_name,
+        composite_object_name,
+        retry_config=retry_config,
     )
 
     start = 0
     for each_object in objects:
         blob_size = each_object[1]
-        content = composed_object_content[start: start + blob_size]
+        content = composed_object_content[start : start + blob_size]
         res.append(content)
         start += blob_size
 
@@ -245,7 +242,7 @@ def dataflux_download_threaded(
     chunk_size = math.ceil(len(objects) / threads)
     chunks = []
     for i in range(threads):
-        chunk = objects[i * chunk_size: (i + 1) * chunk_size]
+        chunk = objects[i * chunk_size : (i + 1) * chunk_size]
         if chunk:
             chunks.append(chunk)
     results_queues = [queue.Queue() for _ in chunks]
@@ -302,7 +299,7 @@ def dataflux_download_parallel(
     chunk_size = math.ceil(len(objects) / parallelization)
     chunks = []
     for i in range(parallelization):
-        chunk = objects[i * chunk_size: (i + 1) * chunk_size]
+        chunk = objects[i * chunk_size : (i + 1) * chunk_size]
         if chunk:
             chunks.append(chunk)
     with multiprocessing.Pool(processes=len(chunks)) as pool:
@@ -349,12 +346,8 @@ def dataflux_download(
         the contents of the object in bytes.
     """
     if storage_client is None:
-        storage_client = storage.Client(
-            project=project_name,
-            client_info=ClientInfo(user_agent="dataflux/0.0"),
-        )
-    else:
-        user_agent.add_dataflux_user_agent(storage_client)
+        storage_client = storage.Client(project=project_name)
+    user_agent.add_dataflux_user_agent(storage_client)
 
     res = []
     max_composite_object_size = (
@@ -376,6 +369,7 @@ def dataflux_download(
                 storage_client=storage_client,
                 bucket_name=bucket_name,
                 object_name=curr_object_name,
+                retry_config=retry_config,
             )
             res.append(curr_object_content)
             i += 1
@@ -399,6 +393,7 @@ def dataflux_download(
                     storage_client=storage_client,
                     bucket_name=bucket_name,
                     object_name=object_name,
+                    retry_config=retry_config,
                 )
                 res.append(curr_object_content)
             else:
@@ -411,6 +406,7 @@ def dataflux_download(
                     composed_object_name,
                     objects_slice,
                     storage_client,
+                    retry_config=retry_config,
                 )
                 current_composed_object = composed_object
                 res.extend(
@@ -420,6 +416,7 @@ def dataflux_download(
                         composed_object_name,
                         objects_slice,
                         storage_client,
+                        retry_config=retry_config,
                     )
                 )
 
@@ -458,12 +455,8 @@ def dataflux_download_lazy(
         An iterator of the contents of the object in bytes.
     """
     if storage_client is None:
-        storage_client = storage.Client(
-            project=project_name,
-            client_info=ClientInfo(user_agent="dataflux/0.0"),
-        )
-    else:
-        user_agent.add_dataflux_user_agent(storage_client)
+        storage_client = storage.Client(project=project_name)
+    user_agent.add_dataflux_user_agent(storage_client)
 
     max_composite_object_size = (
         dataflux_download_optimization_params.max_composite_object_size
@@ -484,6 +477,7 @@ def dataflux_download_lazy(
                 storage_client=storage_client,
                 bucket_name=bucket_name,
                 object_name=curr_object_name,
+                retry_config=retry_config,
             )
             yield from [curr_object_content]
             i += 1
@@ -507,6 +501,7 @@ def dataflux_download_lazy(
                     storage_client=storage_client,
                     bucket_name=bucket_name,
                     object_name=object_name,
+                    retry_config=retry_config,
                 )
                 yield from [curr_object_content]
             else:
@@ -519,6 +514,7 @@ def dataflux_download_lazy(
                     composed_object_name,
                     objects_slice,
                     storage_client,
+                    retry_config=retry_config,
                 )
                 current_composed_object = composed_object
                 yield from (
@@ -528,6 +524,7 @@ def dataflux_download_lazy(
                         composed_object_name,
                         objects_slice,
                         storage_client,
+                        retry_config=retry_config,
                     )
                 )
 
@@ -545,8 +542,7 @@ def clean_composed_object(composed_object):
         try:
             composed_object.delete(retry=MODIFIED_RETRY)
         except Exception as e:
-            logging.exception(
-                f"exception while deleting composite object: {e}")
+            logging.exception(f"exception while deleting composite object: {e}")
 
 
 def term_signal_handler(signal_num, frame):
