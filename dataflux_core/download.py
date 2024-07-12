@@ -19,6 +19,7 @@ from __future__ import annotations
 from google.cloud import storage
 from google.cloud.storage.retry import DEFAULT_RETRY
 from google.api_core.client_info import ClientInfo
+from dataflux_core import user_agent
 
 import uuid
 import logging
@@ -79,6 +80,8 @@ def compose(
             project=project_name,
             client_info=ClientInfo(user_agent="dataflux/0.0"),
         )
+    else:
+        user_agent.add_dataflux_user_agent(storage_client)
 
     bucket = storage_client.bucket(bucket_name)
     destination = bucket.blob(destination_blob_name)
@@ -120,6 +123,8 @@ def decompose(
             project=project_name,
             client_info=ClientInfo(user_agent="dataflux/0.0"),
         )
+    else:
+        user_agent.add_dataflux_user_agent(storage_client)
 
     res = []
     composed_object_content = download_single(
@@ -129,7 +134,7 @@ def decompose(
     start = 0
     for each_object in objects:
         blob_size = each_object[1]
-        content = composed_object_content[start : start + blob_size]
+        content = composed_object_content[start: start + blob_size]
         res.append(content)
         start += blob_size
 
@@ -235,7 +240,7 @@ def dataflux_download_threaded(
     chunk_size = math.ceil(len(objects) / threads)
     chunks = []
     for i in range(threads):
-        chunk = objects[i * chunk_size : (i + 1) * chunk_size]
+        chunk = objects[i * chunk_size: (i + 1) * chunk_size]
         if chunk:
             chunks.append(chunk)
     results_queues = [queue.Queue() for _ in chunks]
@@ -289,7 +294,7 @@ def dataflux_download_parallel(
     chunk_size = math.ceil(len(objects) / parallelization)
     chunks = []
     for i in range(parallelization):
-        chunk = objects[i * chunk_size : (i + 1) * chunk_size]
+        chunk = objects[i * chunk_size: (i + 1) * chunk_size]
         if chunk:
             chunks.append(chunk)
     with multiprocessing.Pool(processes=len(chunks)) as pool:
@@ -338,6 +343,8 @@ def dataflux_download(
             project=project_name,
             client_info=ClientInfo(user_agent="dataflux/0.0"),
         )
+    else:
+        user_agent.add_dataflux_user_agent(storage_client)
 
     res = []
     max_composite_object_size = (
@@ -445,6 +452,8 @@ def dataflux_download_lazy(
             project=project_name,
             client_info=ClientInfo(user_agent="dataflux/0.0"),
         )
+    else:
+        user_agent.add_dataflux_user_agent(storage_client)
 
     max_composite_object_size = (
         dataflux_download_optimization_params.max_composite_object_size
@@ -526,7 +535,8 @@ def clean_composed_object(composed_object):
         try:
             composed_object.delete(retry=MODIFIED_RETRY)
         except Exception as e:
-            logging.exception(f"exception while deleting composite object: {e}")
+            logging.exception(
+                f"exception while deleting composite object: {e}")
 
 
 def term_signal_handler(signal_num, frame):

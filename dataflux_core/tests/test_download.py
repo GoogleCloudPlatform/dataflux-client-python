@@ -31,9 +31,11 @@ class DownloadTestCase(unittest.TestCase):
         bucket._add_file("two", bytes("two", "utf-8"))
         bucket._add_file("three", bytes("three", "utf-8"))
         expected_result = b"onetwothree"
-        blob = download.compose("", bucket_name, destination_blob_name, objects, client)
+        blob = download.compose(
+            "", bucket_name, destination_blob_name, objects, client)
         self.assertEqual(blob.name, destination_blob_name)
         self.assertEqual(blob.content, expected_result)
+        self.assertIn("dataflux", client._connection.user_agent)
 
     def test_decompose(self):
         bucket_name = "test_bucket"
@@ -42,8 +44,10 @@ class DownloadTestCase(unittest.TestCase):
         client = fake_gcs.Client()
         bucket = client.bucket(bucket_name)
         bucket._add_file(object_name, bytes("onetwothree", "utf-8"))
-        result = download.decompose("", bucket_name, object_name, objects, client)
+        result = download.decompose(
+            "", bucket_name, object_name, objects, client)
         self.assertEqual(result, [b"one", b"two", b"three"])
+        self.assertIn("dataflux", client._connection.user_agent)
 
     def test_download_single(self):
         client = fake_gcs.Client()
@@ -65,13 +69,15 @@ class DownloadTestCase(unittest.TestCase):
         bucket._add_file("three", bytes("three", "utf-8"))
         params = download.DataFluxDownloadOptimizationParams(32)
         expected_result = [b"one", b"two", b"three"]
-        result = download.dataflux_download("", bucket_name, objects, client, params)
+        result = download.dataflux_download(
+            "", bucket_name, objects, client, params)
         self.assertEqual(result, expected_result)
         # This checks for succesful deletion of the composed object.
         if len(bucket.blobs) != 3:
             self.fail(
                 f"expected only 3 objects in bucket, but found {len(bucket.blobs)}"
             )
+        self.assertIn("dataflux", client._connection.user_agent)
 
     def test_dataflux_download_parallel(self):
         test_cases = [
@@ -134,6 +140,7 @@ class DownloadTestCase(unittest.TestCase):
                 self.fail(
                     f"{tc['name']} expected only 3 objects in bucket, but found {len(bucket.blobs)}"
                 )
+        self.assertIn("dataflux", client._connection.user_agent)
 
     def test_dataflux_download_lazy(self):
         test_cases = [
@@ -172,6 +179,7 @@ class DownloadTestCase(unittest.TestCase):
                 self.fail(
                     f"test {tc['desc']} expected only 3 objects in bucket, but found {len(bucket.blobs)}"
                 )
+            self.assertIn("dataflux", client._connection.user_agent)
 
     def test_clean_composed_object(self):
         class ComposedObj:

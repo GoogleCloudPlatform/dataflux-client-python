@@ -22,6 +22,9 @@ server, which could be a future improvement.
 """
 
 from __future__ import annotations
+
+from google.cloud.storage import _http
+
 import io
 
 
@@ -78,6 +81,7 @@ class FakeBlobWriter(object):
 
     def __enter__(self):
         return self
+
     def __exit__(self, exc_type, exc_val, exc_tb):
         pass
 
@@ -126,7 +130,8 @@ class Blob(object):
         elif mode == "wb":
             self.content = b""
             return FakeBlobWriter(self)
-        raise NotImplementedError("Supported modes strings are 'rb' and 'wb' only.")
+        raise NotImplementedError(
+            "Supported modes strings are 'rb' and 'wb' only.")
 
 
 class Client(object):
@@ -135,6 +140,7 @@ class Client(object):
     def __init__(self):
         self.buckets: dict[str, Bucket] = dict()
         self.content: dict[str, tuple[str, str]] = dict()
+        self._connection = _http.Connection(self)
 
     def bucket(self, name: str) -> Bucket:
         if name not in self.buckets:
