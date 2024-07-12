@@ -405,6 +405,7 @@ def dataflux_download(
                     storage_client=storage_client,
                     bucket_name=bucket_name,
                     object_name=object_name,
+                    retry_config=retry_config,
                 )
                 res.append(curr_object_content)
             else:
@@ -417,6 +418,7 @@ def dataflux_download(
                     composed_object_name,
                     objects_slice,
                     storage_client,
+                    retry_config=retry_config,
                 )
                 current_composed_object = composed_object
                 res.extend(
@@ -426,6 +428,7 @@ def dataflux_download(
                         composed_object_name,
                         objects_slice,
                         storage_client,
+                        retry_config=retry_config,
                     )
                 )
 
@@ -527,6 +530,7 @@ def dataflux_download_lazy(
                     composed_object_name,
                     objects_slice,
                     storage_client,
+                    retry_config=retry_config,
                 )
                 current_composed_object = composed_object
                 yield from (
@@ -536,6 +540,7 @@ def dataflux_download_lazy(
                         composed_object_name,
                         objects_slice,
                         storage_client,
+                        retry_config=retry_config,
                     )
                 )
 
