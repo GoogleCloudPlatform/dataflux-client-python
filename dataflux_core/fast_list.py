@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import multiprocessing
 import queue
-from dataflux_core import range_splitter
+from dataflux_core import range_splitter, user_agent
 from dataflux_core.download import COMPOSED_PREFIX
 import logging
 import time
@@ -172,6 +172,8 @@ class ListWorker(object):
                 project=self.gcs_project,
                 client_info=ClientInfo(user_agent="dataflux/0.0"),
             )
+        else:
+            user_agent.add_dataflux_user_agent(self.client)
         self.splitter = range_splitter.new_rangesplitter(self.default_alph)
         # When worker has started, attempt to push to all queues. If the idle or unidle queue
         # push fails, the worker will not initialize and will be ignored by the controller.
