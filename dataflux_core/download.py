@@ -78,7 +78,7 @@ def compose(
     if storage_client is None:
         storage_client = storage.Client(
             project=project_name,
-            client_info=ClientInfo(user_agent="dataflux/0.0"),
+            client_info=ClientInfo(user_agent=user_agent.user_agent_string),
         )
     else:
         user_agent.add_dataflux_user_agent(storage_client)
