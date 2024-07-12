@@ -121,12 +121,8 @@ def decompose(
         the contents (in bytes) of the decomposed objects.
     """
     if storage_client is None:
-        storage_client = storage.Client(
-            project=project_name,
-            client_info=ClientInfo(user_agent=user_agent.user_agent_string),
-        )
-    else:
-        user_agent.add_dataflux_user_agent(storage_client)
+        storage_client = storage.Client(project=project_name)
+    user_agent.add_dataflux_user_agent(storage_client)
 
     res = []
     composed_object_content = download_single(
@@ -354,12 +350,8 @@ def dataflux_download(
         the contents of the object in bytes.
     """
     if storage_client is None:
-        storage_client = storage.Client(
-            project=project_name,
-            client_info=ClientInfo(user_agent="dataflux/0.0"),
-        )
-    else:
-        user_agent.add_dataflux_user_agent(storage_client)
+        storage_client = storage.Client(project=project_name)
+    user_agent.add_dataflux_user_agent(storage_client)
 
     res = []
     max_composite_object_size = (
