@@ -188,6 +188,7 @@ def df_download_thread(
     objects: list[tuple[str, int]],
     storage_client: object = None,
     dataflux_download_optimization_params: DataFluxDownloadOptimizationParams = None,
+    retry_config=MODIFIED_RETRY,
 ):
     """Threading helper that calls dataflux_download and places results onto queue.
 
@@ -201,6 +202,7 @@ def df_download_thread(
         storage_client: the google.cloud.storage.Client initialized with the project.
             If not defined, the function will initialize the client with the project_name.
         dataflux_download_optimization_params: the paramemters used to optimize the download performance.
+        retry_config: The retry configuration to pass to all retryable download operations
     """
     result = dataflux_download(
         project_name,
@@ -210,6 +212,7 @@ def df_download_thread(
         dataflux_download_optimization_params,
         # Always signify threading enabled so that signal handling is disabled.
         threading_enabled=True,
+        retry_config=retry_config,
     )
     results_queue.put(result)
 
@@ -221,6 +224,7 @@ def dataflux_download_threaded(
     storage_client: object = None,
     dataflux_download_optimization_params: DataFluxDownloadOptimizationParams = None,
     threads: int = 1,
+    retry_config=MODIFIED_RETRY,
 ) -> list[bytes]:
     """Perform the DataFlux download algorithm threaded to performantly download the object contents as bytes and return.
 
@@ -234,6 +238,7 @@ def dataflux_download_threaded(
             If not defined, the function will initialize the client with the project_name.
         dataflux_download_optimization_params: the paramemters used to optimize the download performance.
         threads: The number of threads on which to download at any given time.
+        retry_config: The retry configuration to pass to all retryable download operations
     Returns:
         the contents of the object in bytes.
     """
@@ -255,6 +260,7 @@ def dataflux_download_threaded(
                 chunk,
                 storage_client,
                 dataflux_download_optimization_params,
+                retry_config,
             ),
         )
         thread_list.append(thread)
@@ -275,6 +281,7 @@ def dataflux_download_parallel(
     storage_client: object = None,
     dataflux_download_optimization_params: DataFluxDownloadOptimizationParams = None,
     parallelization: int = 1,
+    retry_config=MODIFIED_RETRY,
 ) -> list[bytes]:
     """Perform the DataFlux download algorithm in parallel to download the object contents as bytes and return.
 
@@ -288,6 +295,7 @@ def dataflux_download_parallel(
             If not defined, the function will initialize the client with the project_name.
         dataflux_download_optimization_params: the paramemters used to optimize the download performance.
         parallelization: The number of parallel processes that will simultaneously execute the download.
+        retry_config: The retry configuration to pass to all retryable download operations
     Returns:
         the contents of the object in bytes.
     """
@@ -307,6 +315,8 @@ def dataflux_download_parallel(
                     chunk,
                     storage_client,
                     dataflux_download_optimization_params,
+                    False,
+                    retry_config,
                 )
                 for chunk in chunks
             ),
