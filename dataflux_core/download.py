@@ -459,12 +459,8 @@ def dataflux_download_lazy(
         An iterator of the contents of the object in bytes.
     """
     if storage_client is None:
-        storage_client = storage.Client(
-            project=project_name,
-            client_info=ClientInfo(user_agent="dataflux/0.0"),
-        )
-    else:
-        user_agent.add_dataflux_user_agent(storage_client)
+        storage_client = storage.Client(project=project_name)
+    user_agent.add_dataflux_user_agent(storage_client)
 
     max_composite_object_size = (
         dataflux_download_optimization_params.max_composite_object_size
