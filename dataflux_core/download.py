@@ -76,12 +76,8 @@ def compose(
         )
 
     if storage_client is None:
-        storage_client = storage.Client(
-            project=project_name,
-            client_info=ClientInfo(user_agent=user_agent.user_agent_string),
-        )
-    else:
-        user_agent.add_dataflux_user_agent(storage_client)
+        storage_client = storage.Client(project=project_name)
+    user_agent.add_dataflux_user_agent(storage_client)
 
     bucket = storage_client.bucket(bucket_name)
     destination = bucket.blob(destination_blob_name)
