@@ -1,16 +1,20 @@
 {
-    "editor.formatOnSave": true,
+    "[python]": {
+        "editor.formatOnSaveMode": "file",
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "eeyore.yapf",
+        "editor.formatOnType": false,
+        "files.trimTrailingWhitespace": true,
+    },
     "python.testing.pytestArgs": [
         "-s",
-        "dataflux_core/tests"
+        "dataflux_core/tests",
     ],
-    "python.testing.pytestEnabled": false,
-    "python.testing.unittestEnabled": true,
-    "python.testing.unittestArgs": [
-        "-v",
-        "-s",
-        "./dataflux_core",
-        "-p",
-        "test_*.py"
-    ],
+    "python.testing.pytestEnabled": true,
+    "python.testing.unittestEnabled": false,
+    "editor.codeActionsOnSave": {
+        "source.organizeImports": "always"
+    },
+    "files.insertFinalNewline": true,
+    "files.trimFinalNewlines": true,
 }
