@@ -14,12 +14,14 @@
  limitations under the License.
  """
 
-from dataflux_core.tests import fake_gcs
-import unittest
 import io
+import unittest
+
+from dataflux_core.tests import fake_gcs
 
 
 class FakeGCSTest(unittest.TestCase):
+
     def test_list_blobs_empty(self):
         bucket = fake_gcs.Client().bucket("test-bucket")
         self.assertFalse(bucket.list_blobs())
@@ -39,9 +41,8 @@ class FakeGCSTest(unittest.TestCase):
         bucket._add_file("obj1", "a")
         bucket._add_file("obj2", "aa")
         want_objects = [bucket.blobs["obj1"], bucket.blobs["obj2"]]
-        self.assertEqual(
-            bucket.list_blobs(start_offset=want_objects[0].name), want_objects
-        )
+        self.assertEqual(bucket.list_blobs(start_offset=want_objects[0].name),
+                         want_objects)
 
     def test_list_blobs_with_end_range_equal(self):
         bucket = fake_gcs.Client().bucket("test-bucket")
@@ -49,9 +50,8 @@ class FakeGCSTest(unittest.TestCase):
         bucket._add_file("obj2", "aa")
         all_objects = [bucket.blobs["obj1"], bucket.blobs["obj2"]]
         want_objects = [all_objects[0]]
-        self.assertEqual(
-            bucket.list_blobs(end_offset=all_objects[1].name), want_objects
-        )
+        self.assertEqual(bucket.list_blobs(end_offset=all_objects[1].name),
+                         want_objects)
 
     def test_list_blobs_with_start_range_greater(self):
         bucket = fake_gcs.Client().bucket("test-bucket")
@@ -59,21 +59,21 @@ class FakeGCSTest(unittest.TestCase):
         bucket._add_file("obj2", "aa")
         all_objects = [bucket.blobs["obj1"], bucket.blobs["obj2"]]
         want_objects = [all_objects[1]]
-        self.assertEqual(
-            bucket.list_blobs(start_offset=all_objects[1].name), want_objects
-        )
+        self.assertEqual(bucket.list_blobs(start_offset=all_objects[1].name),
+                         want_objects)
 
     def test_list_blobs_with_range(self):
         bucket = fake_gcs.Client().bucket("test-bucket")
         bucket._add_file("obj1", "a")
         bucket._add_file("obj2", "aa")
         bucket._add_file("obj3", "aaa")
-        all_objects = [bucket.blobs["obj1"], bucket.blobs["obj2"], bucket.blobs["obj3"]]
+        all_objects = [
+            bucket.blobs["obj1"], bucket.blobs["obj2"], bucket.blobs["obj3"]
+        ]
         want_objects = [all_objects[1]]
         self.assertEqual(
-            bucket.list_blobs(
-                start_offset=all_objects[1].name, end_offset=all_objects[2].name
-            ),
+            bucket.list_blobs(start_offset=all_objects[1].name,
+                              end_offset=all_objects[2].name),
             want_objects,
         )
 
@@ -82,7 +82,9 @@ class FakeGCSTest(unittest.TestCase):
         bucket._add_file("obj1", "a")
         bucket._add_file("obj2", "aa")
         bucket._add_file("obj3", "aaa")
-        all_objects = [bucket.blobs["obj1"], bucket.blobs["obj2"], bucket.blobs["obj3"]]
+        all_objects = [
+            bucket.blobs["obj1"], bucket.blobs["obj2"], bucket.blobs["obj3"]
+        ]
         want_objects = [all_objects[0]]
         self.assertEqual(bucket.list_blobs(max_results=1), want_objects)
 
@@ -122,7 +124,7 @@ class FakeGCSTest(unittest.TestCase):
         blob = bucket.blob(want_obj)
         writer = fake_gcs.FakeBlobWriter(blob)
         writer.write(obj_bytes)
-        self.assertEqual(blob.content, b''+obj_bytes)
+        self.assertEqual(blob.content, b'' + obj_bytes)
 
     def test_blob_read(self):
         bucket = fake_gcs.Bucket("test-bucket")

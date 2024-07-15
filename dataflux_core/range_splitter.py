@@ -18,8 +18,8 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from itertools import count
 from fractions import Fraction
+from itertools import count
 
 
 @dataclass
@@ -47,7 +47,8 @@ class RangeSplitter(object):
 
     min_splits = 2
 
-    def __init__(self, alphabet_map: dict[int, str], sorted_alphabet: Sequence[str]):
+    def __init__(self, alphabet_map: dict[int, str],
+                 sorted_alphabet: Sequence[str]):
         self.alphabet_map = alphabet_map
         self.sorted_alphabet = sorted_alphabet
         self.alphabet_set = set(sorted_alphabet)
@@ -69,10 +70,8 @@ class RangeSplitter(object):
           A sequence of split points dividing up the provided range.
         """
         if num_splits < 1:
-            raise ValueError(
-                "Got num_splits of %s but need minimum of %s."
-                % (num_splits, self.min_splits)
-            )
+            raise ValueError("Got num_splits of %s but need minimum of %s." %
+                             (num_splits, self.min_splits))
         if len(end_range) != 0 and start_range >= end_range:
             return []
 
@@ -82,12 +81,11 @@ class RangeSplitter(object):
         self.add_characters_to_alphabet(start_range + end_range)
 
         min_int_range = self.string_to_minimal_int_range(
-            start_range, end_range, num_splits
-        )
+            start_range, end_range, num_splits)
 
         split_points = self.generate_splits(
-            GenerateSplitsOpts(min_int_range, num_splits, start_range, end_range)
-        )
+            GenerateSplitsOpts(min_int_range, num_splits, start_range,
+                               end_range))
         return split_points
 
     def generate_splits(self, opts: GenerateSplitsOpts) -> Sequence[str]:
@@ -112,12 +110,11 @@ class RangeSplitter(object):
             split_point = start_int + adjustment * i
             split_string = self.int_to_string(int(split_point), min_len)
 
-            is_greater_than_start = (
-                len(split_string) > 0 and split_string > opts.start_range
-            )
-            is_less_than_end = len(opts.end_range) == 0 or (
-                len(split_string) > 0 and split_string < opts.end_range
-            )
+            is_greater_than_start = (len(split_string) > 0
+                                     and split_string > opts.start_range)
+            is_less_than_end = len(
+                opts.end_range) == 0 or (len(split_string) > 0
+                                         and split_string < opts.end_range)
 
             if is_greater_than_start and is_less_than_end:
                 split_points.append(split_string)
@@ -145,9 +142,8 @@ class RangeSplitter(object):
         # This is assembeled backwards via division, so we reverse the final string.
         return split_string[::-1]
 
-    def string_to_minimal_int_range(
-        self, start_range: str, end_range: str, num_splits: int
-    ) -> MinimalIntRange:
+    def string_to_minimal_int_range(self, start_range: str, end_range: str,
+                                    num_splits: int) -> MinimalIntRange:
         """Converts a string range to a minimal integer range.
 
         Args:
@@ -171,15 +167,13 @@ class RangeSplitter(object):
             end_default_char = end_char
 
         for i in count(0):
-            start_pos = self.alphabet_map[
-                get_char_or_default(start_range, i, start_char)
-            ]
+            start_pos = self.alphabet_map[get_char_or_default(
+                start_range, i, start_char)]
             start_int *= alphabet_len
             start_int += start_pos
 
-            end_pos = self.alphabet_map[
-                get_char_or_default(end_range, i, end_default_char)
-            ]
+            end_pos = self.alphabet_map[get_char_or_default(
+                end_range, i, end_default_char)]
             end_int *= alphabet_len
             end_int += end_pos
 
@@ -226,7 +220,8 @@ class RangeSplitter(object):
         if len(new_alphabet) != len(self.alphabet_set):
             self.sorted_alphabet = sorted(new_alphabet)
             self.alphabet_map = {
-                val: index for index, val in enumerate(self.sorted_alphabet)
+                val: index
+                for index, val in enumerate(self.sorted_alphabet)
             }
 
 

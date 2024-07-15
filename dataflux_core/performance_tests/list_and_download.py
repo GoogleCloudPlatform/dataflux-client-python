@@ -14,16 +14,18 @@
  limitations under the License.
  """
 
-import unittest
-import time
 import os
-from dataflux_core import fast_list, download
+import time
+import unittest
 from math import ceil
+
+from dataflux_core import download, fast_list
 
 FIFTY_GB = 50000000000
 
 
 class ClientPerformanceTest(unittest.TestCase):
+
     def get_config(self):
         config = {}
         # Gather env vars into dictionary.
@@ -45,18 +47,15 @@ class ClientPerformanceTest(unittest.TestCase):
             config["expected_file_count"] = int(config["expected_file_count"])
         if config["expected_total_size"]:
             config["expected_total_size"] = int(config["expected_total_size"])
-        config["max_compose_bytes"] = (
-            int(config["max_compose_bytes"])
-            if config["max_compose_bytes"]
-            else 100000000
-        )
+        config["max_compose_bytes"] = (int(config["max_compose_bytes"])
+                                       if config["max_compose_bytes"] else
+                                       100000000)
         if config["list_timeout"]:
             config["list_timeout"] = float(config["list_timeout"])
         if config["download_timeout"]:
             config["download_timeout"] = float(config["download_timeout"])
-        config["parallelization"] = (
-            int(config["parallelization"]) if config["parallelization"] else 1
-        )
+        config["parallelization"] = (int(config["parallelization"])
+                                     if config["parallelization"] else 1)
 
         return config
 
@@ -70,10 +69,8 @@ class ClientPerformanceTest(unittest.TestCase):
         ).run()
         list_end_time = time.time()
         listing_time = list_end_time - list_start_time
-        if (
-            config["expected_file_count"]
-            and len(list_result) != config["expected_file_count"]
-        ):
+        if (config["expected_file_count"]
+                and len(list_result) != config["expected_file_count"]):
             raise AssertionError(
                 f"Expected {config['expected_file_count']} files, but got {len(list_result)}"
             )
@@ -88,8 +85,7 @@ class ClientPerformanceTest(unittest.TestCase):
         if config["expected_total_size"] > FIFTY_GB:
             segmented = True
         download_params = download.DataFluxDownloadOptimizationParams(
-            config["max_compose_bytes"]
-        )
+            config["max_compose_bytes"])
         download_start_time = time.time()
         download_result = None
         if config["parallelization"] and config["parallelization"] > 1:
@@ -110,15 +106,13 @@ class ClientPerformanceTest(unittest.TestCase):
         download_end_time = time.time()
         downloading_time = download_end_time - download_start_time
         total_size = sum([len(x) for x in download_result])
-        if (
-            not segmented
-            and config["expected_total_size"]
-            and total_size != config["expected_total_size"]
-        ):
+        if (not segmented and config["expected_total_size"]
+                and total_size != config["expected_total_size"]):
             raise AssertionError(
                 f"Expected {config['expected_total_size']} bytes but got {total_size} bytes"
             )
-        if config["download_timeout"] and downloading_time > config["download_timeout"]:
+        if config["download_timeout"] and downloading_time > config[
+                "download_timeout"]:
             raise AssertionError(
                 f"Expected download operation to complete in under {config['download_timeout']} seconds, but took {downloading_time} seconds."
             )
@@ -137,16 +131,14 @@ class ClientPerformanceTest(unittest.TestCase):
         num_segments = config["expected_total_size"] / FIFTY_GB
         segment_size = ceil(config["expected_file_count"] / num_segments)
         segments = [
-            list_result[i : i + segment_size]
+            list_result[i:i + segment_size]
             for i in range(0, len(list_result), segment_size)
         ]
         total_size = 0
         for seg in segments:
             total_size += self.run_download(config, seg)
-        if (
-            config["expected_total_size"]
-            and total_size != config["expected_total_size"]
-        ):
+        if (config["expected_total_size"]
+                and total_size != config["expected_total_size"]):
             raise AssertionError(
                 f"Expected {config['expected_total_size']} bytes but got {total_size} bytes"
             )

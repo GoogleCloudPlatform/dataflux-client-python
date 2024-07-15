@@ -14,11 +14,13 @@
  limitations under the License.
  """
 
-from dataflux_core import range_splitter
 import unittest
+
+from dataflux_core import range_splitter
 
 
 class RangeSplitterTest(unittest.TestCase):
+
     def test_range_splits(self):
         test_cases = [
             {
@@ -53,11 +55,16 @@ class RangeSplitterTest(unittest.TestCase):
                 "result": ["1999995"],
             },
             {
-                "desc": "split full namespace",
-                "start": "",
-                "end": "",
-                "splits": 24,
-                "expected_error": None,
+                "desc":
+                "split full namespace",
+                "start":
+                "",
+                "end":
+                "",
+                "splits":
+                24,
+                "expected_error":
+                None,
                 "result": [
                     "03",
                     "07",
@@ -131,12 +138,20 @@ class RangeSplitterTest(unittest.TestCase):
             {
                 "desc": "empty strings",
                 "chars": "",
-                "expected_alphabet_map": {"7": 0, "8": 1, "9": 2},
+                "expected_alphabet_map": {
+                    "7": 0,
+                    "8": 1,
+                    "9": 2
+                },
             },
             {
                 "desc": "no new characters",
                 "chars": "998",
-                "expected_alphabet_map": {"7": 0, "8": 1, "9": 2},
+                "expected_alphabet_map": {
+                    "7": 0,
+                    "8": 1,
+                    "9": 2
+                },
             },
             {
                 "desc": "new characters",
@@ -155,7 +170,8 @@ class RangeSplitterTest(unittest.TestCase):
 
         for tc in test_cases:
             rs.add_characters_to_alphabet(tc["chars"])
-            self.assertEqual(rs.alphabet_map, tc["expected_alphabet_map"], tc["desc"])
+            self.assertEqual(rs.alphabet_map, tc["expected_alphabet_map"],
+                             tc["desc"])
 
     def test_int_to_string(self):
         test_cases = [
@@ -234,8 +250,7 @@ class RangeSplitterTest(unittest.TestCase):
         ]
         for tc in test_cases:
             result = range_splitter.get_char_or_default(
-                tc["characters"], tc["index"], tc["default_char"]
-            )
+                tc["characters"], tc["index"], tc["default_char"])
             self.assertEqual(result, tc["result"], tc["desc"])
 
     def test_is_range_equal_with_padding(self):
@@ -297,83 +312,122 @@ class RangeSplitterTest(unittest.TestCase):
     def test_string_to_minimal_int_range(self):
         test_cases = [
             {
-                "desc": "split numbers",
-                "start": "00",
-                "end": "20",
-                "splits": 3,
-                "result": range_splitter.MinimalIntRange(
-                    start_int=0, end_int=20, min_len=2
-                ),
+                "desc":
+                "split numbers",
+                "start":
+                "00",
+                "end":
+                "20",
+                "splits":
+                3,
+                "result":
+                range_splitter.MinimalIntRange(start_int=0,
+                                               end_int=20,
+                                               min_len=2),
             },
             {
-                "desc": "start is non-zero",
-                "start": "06",
-                "end": "201",
-                "splits": 4,
-                "result": range_splitter.MinimalIntRange(
-                    start_int=6, end_int=20, min_len=2
-                ),
+                "desc":
+                "start is non-zero",
+                "start":
+                "06",
+                "end":
+                "201",
+                "splits":
+                4,
+                "result":
+                range_splitter.MinimalIntRange(start_int=6,
+                                               end_int=20,
+                                               min_len=2),
             },
             {
-                "desc": "start with smaller suffix",
-                "start": "091",
-                "end": "10",
-                "splits": 2,
-                "result": range_splitter.MinimalIntRange(
-                    start_int=91, end_int=100, min_len=3
-                ),
+                "desc":
+                "start with smaller suffix",
+                "start":
+                "091",
+                "end":
+                "10",
+                "splits":
+                2,
+                "result":
+                range_splitter.MinimalIntRange(start_int=91,
+                                               end_int=100,
+                                               min_len=3),
             },
             {
-                "desc": "start is empty",
-                "start": "",
-                "end": "10",
-                "splits": 2,
-                "result": range_splitter.MinimalIntRange(
-                    start_int=0, end_int=10, min_len=2
-                ),
+                "desc":
+                "start is empty",
+                "start":
+                "",
+                "end":
+                "10",
+                "splits":
+                2,
+                "result":
+                range_splitter.MinimalIntRange(start_int=0,
+                                               end_int=10,
+                                               min_len=2),
             },
             {
-                "desc": "start and end are empty",
-                "start": "",
-                "end": "",
-                "splits": 24,
-                "result": range_splitter.MinimalIntRange(
-                    start_int=0, end_int=99, min_len=2
-                ),
+                "desc":
+                "start and end are empty",
+                "start":
+                "",
+                "end":
+                "",
+                "splits":
+                24,
+                "result":
+                range_splitter.MinimalIntRange(start_int=0,
+                                               end_int=99,
+                                               min_len=2),
             },
             {
-                "desc": "end is empty",
-                "start": "5555",
-                "end": "",
-                "splits": 4,
-                "result": range_splitter.MinimalIntRange(
-                    start_int=55, end_int=99, min_len=2
-                ),
+                "desc":
+                "end is empty",
+                "start":
+                "5555",
+                "end":
+                "",
+                "splits":
+                4,
+                "result":
+                range_splitter.MinimalIntRange(start_int=55,
+                                               end_int=99,
+                                               min_len=2),
             },
             {
-                "desc": "tight range split",
-                "start": "199999",
-                "end": "2",
-                "splits": 1,
-                "result": range_splitter.MinimalIntRange(
-                    start_int=1999990, end_int=2000000, min_len=7
-                ),
+                "desc":
+                "tight range split",
+                "start":
+                "199999",
+                "end":
+                "2",
+                "splits":
+                1,
+                "result":
+                range_splitter.MinimalIntRange(start_int=1999990,
+                                               end_int=2000000,
+                                               min_len=7),
             },
             {
-                "desc": "tight range split",
-                "start": "8100",
-                "end": "9100",
-                "splits": 3,
-                "result": range_splitter.MinimalIntRange(
-                    start_int=81, end_int=91, min_len=2
-                ),
+                "desc":
+                "tight range split",
+                "start":
+                "8100",
+                "end":
+                "9100",
+                "splits":
+                3,
+                "result":
+                range_splitter.MinimalIntRange(start_int=81,
+                                               end_int=91,
+                                               min_len=2),
             },
         ]
         rs = range_splitter.new_rangesplitter("0123456789")
         for tc in test_cases:
-            result = rs.string_to_minimal_int_range(
-                tc["start"], tc["end"], tc["splits"]
-            )
+            result = rs.string_to_minimal_int_range(tc["start"], tc["end"],
+                                                    tc["splits"])
             self.assertEqual(result, tc["result"], tc["desc"])
 
     def test_generate_splits(self):
@@ -393,10 +447,14 @@ class RangeSplitterTest(unittest.TestCase):
                 "result": ["1999995"],
             },
             {
-                "desc": "split full namespace",
-                "start": "",
-                "end": "",
-                "splits": 24,
+                "desc":
+                "split full namespace",
+                "start":
+                "",
+                "end":
+                "",
+                "splits":
+                24,
                 "result": [
                     "03",
                     "07",
@@ -463,11 +521,10 @@ class RangeSplitterTest(unittest.TestCase):
         rs = range_splitter.new_rangesplitter("0123456789")
         for tc in test_cases:
             min_int_range = rs.string_to_minimal_int_range(
-                tc["start"], tc["end"], tc["splits"]
-            )
-            opts = range_splitter.GenerateSplitsOpts(
-                min_int_range, tc["splits"], tc["start"], tc["end"]
-            )
+                tc["start"], tc["end"], tc["splits"])
+            opts = range_splitter.GenerateSplitsOpts(min_int_range,
+                                                     tc["splits"], tc["start"],
+                                                     tc["end"])
             result = rs.generate_splits(opts)
             self.assertEqual(result, tc["result"], tc["desc"])
 

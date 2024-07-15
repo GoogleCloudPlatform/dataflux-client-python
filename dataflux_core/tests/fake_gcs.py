@@ -23,9 +23,9 @@ server, which could be a future improvement.
 
 from __future__ import annotations
 
-from google.cloud.storage import _http
-
 import io
+
+from google.cloud.storage import _http
 
 
 class Bucket(object):
@@ -49,9 +49,8 @@ class Bucket(object):
         for name in sorted(self.blobs):
             if max_results and len(results) == max_results:
                 break
-            if (not start_offset or name >= start_offset) and (
-                not end_offset or name < end_offset
-            ):
+            if (not start_offset or name
+                    >= start_offset) and (not end_offset or name < end_offset):
                 if name.startswith(prefix):
                     results.append(self.blobs[name])
         return results
@@ -61,10 +60,14 @@ class Bucket(object):
             self.blobs[name] = Blob(name, bucket=self)
         return self.blobs[name]
 
-    def _add_file(self, filename: str, content: bytes, storage_class="STANDARD"):
-        self.blobs[filename] = Blob(
-            filename, content, self, storage_class=storage_class
-        )
+    def _add_file(self,
+                  filename: str,
+                  content: bytes,
+                  storage_class="STANDARD"):
+        self.blobs[filename] = Blob(filename,
+                                    content,
+                                    self,
+                                    storage_class=storage_class)
 
 
 class FakeBlobWriter(object):
