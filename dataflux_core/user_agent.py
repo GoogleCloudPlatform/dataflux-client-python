@@ -14,8 +14,8 @@
  limitations under the License.
  """
 
-from google.cloud import storage
 from google.api_core.client_info import ClientInfo
+from google.cloud import storage
 
 user_agent_string = "dataflux/1.0"
 

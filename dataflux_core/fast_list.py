@@ -16,21 +16,22 @@
 
 from __future__ import annotations
 
+import logging
 import multiprocessing
 import queue
-from dataflux_core import range_splitter, user_agent
-from dataflux_core.download import COMPOSED_PREFIX
-import logging
 import time
 
+from google.api_core.client_info import ClientInfo
 from google.cloud import storage
 from google.cloud.storage.retry import DEFAULT_RETRY
-from google.api_core.client_info import ClientInfo
+
+from dataflux_core import range_splitter, user_agent
+from dataflux_core.download import COMPOSED_PREFIX
 
 DEFAULT_ALLOWED_CLASS = ["STANDARD"]
-MODIFIED_RETRY = DEFAULT_RETRY.with_deadline(300.0).with_delay(
-    initial=1.0, multiplier=1.2, maximum=45.0
-)
+MODIFIED_RETRY = DEFAULT_RETRY.with_deadline(300.0).with_delay(initial=1.0,
+                                                               multiplier=1.2,
+                                                               maximum=45.0)
 
 
 def remove_prefix(text: str, prefix: str):
@@ -94,7 +95,8 @@ class ListWorker(object):
         error_queue: "multiprocessing.Queue[Exception]",
         start_range: str,
         end_range: str,
-        retry_config: "google.api_core.retry.retry_unary.Retry" = MODIFIED_RETRY,
+        retry_config:
+        "google.api_core.retry.retry_unary.Retry" = MODIFIED_RETRY,
         client: storage.Client = None,
         skip_compose: bool = True,
         list_directory_objects: bool = False,
@@ -158,10 +160,8 @@ class ListWorker(object):
             return False
         self.start_range = new_range[0]
         self.end_range = new_range[1]
-        logging.debug(
-            f"Process {self.name} got new range [{self.start_range},"
-            f" {self.end_range}]"
-        )
+        logging.debug(f"Process {self.name} got new range [{self.start_range},"
+                      f" {self.end_range}]")
         return True
 
     def run(self) -> None:
@@ -189,12 +189,14 @@ class ListWorker(object):
             has_results = False
             try:
                 list_blob_args = {
-                    "max_results": self.max_results,
-                    "start_offset": self.prefix + self.start_range,
-                    "end_offset": (
-                        "" if not self.end_range else self.prefix + self.end_range
-                    ),
-                    "retry": self.retry_config,
+                    "max_results":
+                    self.max_results,
+                    "start_offset":
+                    self.prefix + self.start_range,
+                    "end_offset": ("" if not self.end_range else self.prefix +
+                                   self.end_range),
+                    "retry":
+                    self.retry_config,
                 }
                 if self.prefix:
                     list_blob_args["prefix"] = self.prefix
@@ -205,14 +207,11 @@ class ListWorker(object):
                 self.heartbeat_queue.put(self.name)
                 for blob in blobs:
                     i += 1
-                    if (
-                        (
-                            not self.skip_compose
-                            or not blob.name.startswith(COMPOSED_PREFIX)
-                        )
-                        and (self.list_directory_objects or blob.name[-1] != "/")
-                        and blob.storage_class in self.allowed_storage_classes
-                    ):
+                    if ((not self.skip_compose
+                         or not blob.name.startswith(COMPOSED_PREFIX)) and
+                        (self.list_directory_objects or blob.name[-1] != "/")
+                            and blob.storage_class
+                            in self.allowed_storage_classes):
                         self.results.add((blob.name, blob.size))
                     # Remove the prefix from the name so that range calculations remain prefix-agnostic.
                     # This is necessary due to the unbounded end-range when splitting string namespaces
@@ -229,9 +228,8 @@ class ListWorker(object):
                     f"process {self.name} encountered error ({retries_remaining} retries left): {str(e)}"
                 )
                 if retries_remaining == 0:
-                    logging.error(
-                        "process " + self.name + " is out of retries; exiting"
-                    )
+                    logging.error("process " + self.name +
+                                  " is out of retries; exiting")
                     self.error_queue.put(e)
                     return
                 continue
@@ -242,8 +240,7 @@ class ListWorker(object):
                 except queue.Empty:
                     continue
                 split_points = self.splitter.split_range(
-                    self.start_range, self.end_range, 1
-                )
+                    self.start_range, self.end_range, 1)
                 steal_range = (split_points[0], self.end_range)
                 self.direct_work_available_queue.put(steal_range)
                 self.end_range = split_points[0]
@@ -478,7 +475,8 @@ class ListingController(object):
                     return sorted(results)
                 return list(results)
 
-    def terminate_now(self, processes: "list[multiprocessing.Process]") -> RuntimeError:
+    def terminate_now(
+            self, processes: "list[multiprocessing.Process]") -> RuntimeError:
         """Terminates all processes immediately.
 
         Args:
@@ -503,19 +501,16 @@ class ListingController(object):
         """
         # Define the queues.
         send_work_stealing_needed_queue: multiprocessing.Queue[str] = (
-            multiprocessing.Queue()
-        )
+            multiprocessing.Queue())
         heartbeat_queue: multiprocessing.Queue[str] = multiprocessing.Queue()
         direct_work_available_queue: multiprocessing.Queue[tuple[str, str]] = (
-            multiprocessing.Queue()
-        )
+            multiprocessing.Queue())
         idle_queue: multiprocessing.Queue[str] = multiprocessing.Queue()
         unidle_queue: multiprocessing.Queue[str] = multiprocessing.Queue()
         results_queue: multiprocessing.Queue[set[tuple[str, int]]] = (
-            multiprocessing.Queue()
-        )
-        metadata_queue: multiprocessing.Queue[tuple[str, int]] = multiprocessing.Queue(
-        )
+            multiprocessing.Queue())
+        metadata_queue: multiprocessing.Queue[tuple[
+            str, int]] = multiprocessing.Queue()
         error_queue: multiprocessing.Queue[Exception] = multiprocessing.Queue()
         processes = []
         results: set[tuple[str, int]] = set()
@@ -553,7 +548,8 @@ class ListingController(object):
             try:
                 e = error_queue.get_nowait()
                 logging.error(
-                    f"Got error from child process; exiting. Check child process logs for more details. Error: {e}")
+                    f"Got error from child process; exiting. Check child process logs for more details. Error: {e}"
+                )
                 return self.terminate_now(processes)
             except queue.Empty:
                 pass
@@ -575,15 +571,14 @@ class ListingController(object):
             if not alive:
                 break
             # Update all queues related to tracking process status.
-            self.manage_tracking_queues(
-                idle_queue, unidle_queue, heartbeat_queue)
+            self.manage_tracking_queues(idle_queue, unidle_queue,
+                                        heartbeat_queue)
             if self.check_crashed_processes():
                 return self.terminate_now(processes)
             logging.debug("Inited procs: %d", len(self.inited))
             logging.debug("Waiting for work: %d", self.waiting_for_work)
             if len(self.inited) == self.waiting_for_work and (
-                self.waiting_for_work > 0
-            ):
+                    self.waiting_for_work > 0):
                 logging.debug("Exiting, all processes are waiting for work")
                 for _ in range(self.max_parallelism * 2):
                     direct_work_available_queue.put((None, None))
@@ -596,4 +591,5 @@ class ListingController(object):
             except queue.Empty:
                 break
         logging.debug("Got all results, waiting for processes to exit.")
-        return self.cleanup_processes(processes, results_queue, metadata_queue, results)
+        return self.cleanup_processes(processes, results_queue, metadata_queue,
+                                      results)

@@ -19,7 +19,8 @@
 
 import argparse
 import time
-from dataflux_core import fast_list, download
+
+from dataflux_core import download, fast_list
 
 
 def parse_args():
@@ -39,9 +40,10 @@ def main() -> None:
     args = parse_args()
     list_start_time = time.time()
     print(f"Listing operation started at {list_start_time}")
-    list_result = fast_list.ListingController(
-        args.num_workers, args.project, args.bucket, prefix=args.prefix
-    ).run()
+    list_result = fast_list.ListingController(args.num_workers,
+                                              args.project,
+                                              args.bucket,
+                                              prefix=args.prefix).run()
     list_end_time = time.time()
     if args.bucket_file_count and len(list_result) != args.bucket_file_count:
         raise AssertionError(
@@ -53,8 +55,7 @@ def main() -> None:
     size = sum([x[1] for x in list_result])
     print(f"Starting download of: {size} bytes of data...")
     download_params = download.DataFluxDownloadOptimizationParams(
-        args.max_compose_bytes
-    )
+        args.max_compose_bytes)
     download_start_time = time.time()
     print(f"Download operation started at {download_start_time}")
     download_result = download.dataflux_download_threaded(

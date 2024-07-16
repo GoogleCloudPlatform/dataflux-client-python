@@ -15,13 +15,15 @@
  """
 
 import queue
+import time
 import unittest
+
 from dataflux_core import fast_list
 from dataflux_core.tests import fake_gcs, fake_multiprocess
-import time
 
 
 class FastListTest(unittest.TestCase):
+
     def test_single_worker(self):
         """End to end test of a single ListWorker."""
         test_cases = [
@@ -125,18 +127,17 @@ class FastListTest(unittest.TestCase):
                 bucket._add_file(str(i), b"a" * object_size)
             # Add one composed object to make sure it is skipped.
             for i in range(tc["compose_obj_count"]):
-                bucket._add_file(
-                    f"dataflux-composed-objects/composed{i}.tar", b"a" * object_size
-                )
+                bucket._add_file(f"dataflux-composed-objects/composed{i}.tar",
+                                 b"a" * object_size)
             for i in range(tc["prefix_obj_count"]):
-                bucket._add_file(
-                    f"{tc['prefix']}file{i}.txt", b"a" * object_size)
+                bucket._add_file(f"{tc['prefix']}file{i}.txt",
+                                 b"a" * object_size)
             for i in range(tc["directory_obj_count"]):
                 bucket._add_file(f"{tc['prefix']}/dir{i}/", b"")
             for i in range(tc["archive_obj_count"]):
-                bucket._add_file(
-                    f"archive_{i}", b"a" * object_size, storage_class="ARCHIVE"
-                )
+                bucket._add_file(f"archive_{i}",
+                                 b"a" * object_size,
+                                 storage_class="ARCHIVE")
             list_worker = fast_list.ListWorker(
                 "test_worker",
                 "",
@@ -172,10 +173,9 @@ class FastListTest(unittest.TestCase):
             for result in got_results:
                 got_total_size += result[1]
             want_total_size = (
-                expected_objects
-                - (tc["directory_obj_count"]
-                   if tc["list_directory_objects"] else 0)
-            ) * object_size
+                expected_objects -
+                (tc["directory_obj_count"]
+                 if tc["list_directory_objects"] else 0)) * object_size
             if got_total_size != want_total_size:
                 self.fail(
                     f"got {got_total_size} total size, want {want_total_size}")
@@ -213,7 +213,8 @@ class FastListTest(unittest.TestCase):
         controller.inited.add("one")
         controller.checkins["one"] = time.time()
         if controller.check_crashed_processes():
-            self.fail(f"expected no crahsed processes, but found crashed process")
+            self.fail(
+                f"expected no crahsed processes, but found crashed process")
         controller.checkins["one"] = time.time() - 100
         if not controller.check_crashed_processes():
             self.fail(
@@ -235,18 +236,16 @@ class FastListTest(unittest.TestCase):
         results_set = set()
         for i in range(5):
             procs.append(fake_multiprocess.FakeProcess(f"proc{i}", False))
-        results = controller.cleanup_processes(
-            procs, results_queue, metadata_queue, results_set
-        )
+        results = controller.cleanup_processes(procs, results_queue,
+                                               metadata_queue, results_set)
         if results:
             self.fail("received results when no processes were alive")
         procs = []
         expected = [("item", 1), ("item2", 2)]
         for i in range(5):
             procs.append(fake_multiprocess.FakeProcess(f"proc{i}", True))
-        results = controller.cleanup_processes(
-            procs, results_queue, metadata_queue, results_set
-        )
+        results = controller.cleanup_processes(procs, results_queue,
+                                               metadata_queue, results_set)
         self.assertEqual(results, expected)
 
     def test_terminate_now(self):
@@ -255,8 +254,8 @@ class FastListTest(unittest.TestCase):
         term_tracker = []
         proc_count = 5
         for i in range(proc_count):
-            procs.append(fake_multiprocess.FakeProcess(
-                f"proc{i}", False, term_tracker))
+            procs.append(
+                fake_multiprocess.FakeProcess(f"proc{i}", False, term_tracker))
 
         with self.assertRaises(RuntimeError):
             controller.terminate_now(procs)
@@ -295,7 +294,8 @@ class FastListTest(unittest.TestCase):
         except:
             return
         self.fail(
-            "Expected controller to raise an error when child process raises an error but it did not")
+            "Expected controller to raise an error when child process raises an error but it did not"
+        )
 
     def test_wait_for_work_success(self):
         """Tests waiting for work when there is still work remaining."""
