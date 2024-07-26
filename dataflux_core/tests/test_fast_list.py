@@ -221,6 +221,24 @@ class FastListTest(unittest.TestCase):
                 f"expected crashed process to be detected, but found no crashed processes"
             )
 
+    def test_check_crashed_processes_follow_retry_timeout(self):
+        """Tests that processes aren't considered to be crashed while waiting to retry API calls"""
+        controller = fast_list.ListingController(
+            10,
+            "",
+            "",
+            retry_config=fast_list.MODIFIED_RETRY.with_delay(maximum=90))
+        controller.inited.add("one")
+        controller.checkins["one"] = time.time() - 170
+        if controller.check_crashed_processes():
+            self.fail(
+                "expected no crahsed processes, but found crashed process")
+        controller.checkins["one"] = time.time() - 190
+        if not controller.check_crashed_processes():
+            self.fail(
+                "expected crashed process to be detected, but found no crashed processes"
+            )
+
     def test_cleanup_processes(self):
         """Tests that all processes are cleaned up at the end of execution."""
         controller = fast_list.ListingController(10, "", "", True)
