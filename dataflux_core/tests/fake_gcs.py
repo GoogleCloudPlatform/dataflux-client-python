@@ -72,12 +72,8 @@ class Bucket(object):
                                     self,
                                     storage_class=storage_class)
 
-    def test_iam_permissions(self, permission: any):
-        result = []
-        for p in permission:
-            if p in self.permissions:
-                result.append(p)
-        return result
+    def test_iam_permissions(self, permissions: any):
+        return [p for p in permissions if p in self.permissions]
 
 
 class FakeBlobWriter(object):
