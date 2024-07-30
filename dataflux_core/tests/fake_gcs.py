@@ -36,6 +36,9 @@ class Bucket(object):
             raise Exception("bucket name must not be empty")
         self.name = name
         self.blobs: dict[str, Blob] = dict()
+        self.permissions: any = [
+            "storage.objects.create", "storage.objects.delete"
+        ]
 
     def list_blobs(
         self,
@@ -68,6 +71,13 @@ class Bucket(object):
                                     content,
                                     self,
                                     storage_class=storage_class)
+
+    def test_iam_permissions(self, permission: any):
+        result = []
+        for p in permission:
+            if p in self.permissions:
+                result.append(p)
+        return result
 
 
 class FakeBlobWriter(object):
@@ -151,3 +161,6 @@ class Client(object):
             if name in self.content:
                 self.buckets[name].content = self.content[name]
         return self.buckets[name]
+
+    def _set_perm(self, permissions: any, name: str):
+        self.buckets[name].permissions = permissions

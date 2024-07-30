@@ -136,6 +136,24 @@ class FakeGCSTest(unittest.TestCase):
         blob = bucket.blob("test")
         self.assertIsInstance(blob.open("wb"), fake_gcs.FakeBlobWriter)
 
+    def test_permissions(self):
+        test_bucket = "test-bucket"
+        test_perm = ["test-perm-1", "test-perm-3"]
+        client = fake_gcs.Client()
+        bucket = client.bucket(test_bucket)
+        client._set_perm(["test-perm-1", "test-perm-2", "test-perm-3"],
+                         test_bucket)
+        got_perm = bucket.test_iam_permissions(test_perm)
+        self.assertEqual(got_perm, test_perm)
+
+    def test_no_permissions(self):
+        test_bucket = "test-bucket"
+        test_perm = ["test-perm-1", "test-perm-3"]
+        client = fake_gcs.Client()
+        bucket = client.bucket(test_bucket)
+        got_perm = bucket.test_iam_permissions(test_perm)
+        self.assertEqual(got_perm, [])
+
 
 if __name__ == "__main__":
     unittest.main()
