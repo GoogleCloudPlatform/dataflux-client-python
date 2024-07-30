@@ -36,9 +36,7 @@ class Bucket(object):
             raise Exception("bucket name must not be empty")
         self.name = name
         self.blobs: dict[str, Blob] = dict()
-        self.permissions: any = [
-            "storage.objects.create", "storage.objects.delete"
-        ]
+        self.permissions: any = []
 
     def list_blobs(
         self,
