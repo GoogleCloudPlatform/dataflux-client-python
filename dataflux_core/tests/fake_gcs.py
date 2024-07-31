@@ -31,6 +31,9 @@ from google.cloud.storage import _http
 class Bucket(object):
     """Bucket represents a bucket in GCS, containing objects."""
 
+    list_error = None
+    """If set, an error which is returned when calling list_blobs"""
+
     def __init__(self, name: str):
         if not name:
             raise Exception("bucket name must not be empty")

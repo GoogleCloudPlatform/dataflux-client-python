@@ -21,12 +21,11 @@ import multiprocessing
 import queue
 import time
 
+from dataflux_core import range_splitter, user_agent
+from dataflux_core.download import COMPOSED_PREFIX
 from google.api_core.client_info import ClientInfo
 from google.cloud import storage
 from google.cloud.storage.retry import DEFAULT_RETRY
-
-from dataflux_core import range_splitter, user_agent
-from dataflux_core.download import COMPOSED_PREFIX
 
 DEFAULT_ALLOWED_CLASS = ["STANDARD"]
 MODIFIED_RETRY = DEFAULT_RETRY.with_deadline(300.0).with_delay(initial=1.0,
@@ -181,6 +180,13 @@ class ListWorker(object):
         self.idle_queue.put(self.name)
         self.unidle_queue.put(self.name)
         self.heartbeat_queue.put(self.name)
+        if self.retry_config:
+            # Post a heartbeat when retrying so the process doesn't get killed.
+            # The retry class automatically logs the retry as a debug log.
+            def on_error(e: Exception):
+                self.heartbeat_queue.put(self.name)
+
+            self.retry_config._on_error = on_error
         if self.start_range is None and self.end_range is None:
             if not self.wait_for_work():
                 return
@@ -405,8 +411,12 @@ class ListingController(object):
         logging.debug("checking for crashed procs...")
         now = time.time()
         crashed = []
+        # Wait at least 60 seconds or 2 times the API call retry delay for check-ins,
+        # otherwise processes might appear to be crashed while retrying API calls.
+        checkin_wait = 2 * self.retry_config._maximum if self.retry_config else 0
+        checkin_wait = max(checkin_wait, 60)
         for inited_worker, last_checkin in self.checkins.items():
-            if now - last_checkin > 60:
+            if now - last_checkin > checkin_wait:
                 crashed.append(inited_worker)
             for proc in crashed:
                 if proc in self.inited:
