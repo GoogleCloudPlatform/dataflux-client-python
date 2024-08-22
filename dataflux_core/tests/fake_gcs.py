@@ -59,8 +59,7 @@ class Bucket(object):
                     results.append(self.blobs[name])
         return results
 
-    def blob(self, name: str):
-        missing_path = False
+    def blob(self, name: str, missing_path: bool = False):
         if name == "missing-path":
             missing_path = True
         if name not in self.blobs:
@@ -142,6 +141,9 @@ class Blob(object):
 
     def download_as_bytes(self, retry=None):
         return self.content
+
+    def download_to_file(self, file_obj: io.IOBase) -> None:
+        file_obj.write(self.content)
 
     def open(self, mode: str, ignore_flush: bool = False):
         if mode == "rb":

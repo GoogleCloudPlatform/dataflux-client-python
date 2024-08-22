@@ -154,6 +154,17 @@ class FakeGCSTest(unittest.TestCase):
         got_perm = bucket.test_iam_permissions(test_perm)
         self.assertEqual(got_perm, [])
 
+    def test_download_to_file(self):
+        bucket = fake_gcs.Client().bucket("test-bucket")
+        name = "obj1"
+        contents = b"aaaa"
+        bucket._add_file(name, contents)
+
+        stream = io.BytesIO()
+        bucket.blob(name).download_to_file(stream)
+        stream.seek(0)
+        self.assertEqual(stream.read(), contents)
+
 
 if __name__ == "__main__":
     unittest.main()
