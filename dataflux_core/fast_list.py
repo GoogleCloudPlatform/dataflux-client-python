@@ -120,7 +120,7 @@ class ListWorker(object):
         self.client = client
         self.max_results = 5000
         self.splitter = None
-        self.default_alph = "a"
+        self.default_alph = "ab"
         self.skip_compose = skip_compose
         self.list_directory_objects = list_directory_objects
         self.prefix = prefix if prefix else ""
