@@ -59,9 +59,12 @@ class Bucket(object):
                     results.append(self.blobs[name])
         return results
 
-    def blob(self, name: str):
+    def blob(self, name: str, missing_path: bool = False):
+        if name == "missing-path":
+            missing_path = True
         if name not in self.blobs:
-            self.blobs[name] = Blob(name, bucket=self)
+            self.blobs[name] = Blob(
+                name, bucket=self, missing_bucket=missing_path)
         return self.blobs[name]
 
     def _add_file(self,
@@ -113,6 +116,7 @@ class Blob(object):
         content: bytes = b"",
         bucket: Bucket = None,
         storage_class="STANDARD",
+        missing_bucket: bool = False
     ):
         self.name = name
         self.retry = None
@@ -120,6 +124,7 @@ class Blob(object):
         self.bucket = bucket
         self.size = len(self.content)
         self.storage_class = storage_class
+        self.missing_bucket = missing_bucket
 
     def compose(self, sources: list[str], retry=None):
         b = b""
@@ -130,6 +135,9 @@ class Blob(object):
 
     def delete(self, retry=None):
         del self.bucket.blobs[self.name]
+
+    def exists(self, retry=None):
+        return not self.missing_bucket
 
     def download_as_bytes(self, retry=None):
         return self.content
