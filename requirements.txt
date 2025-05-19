@@ -1,3 +1,4 @@
+google-auth==2.39.0
 google-cloud-storage
 absl-py
 pytest
